@@ -1,0 +1,6 @@
+train_pre_files (array([0.3096322 , 0.34275213, 0.25644824], dtype=float32), array([0.16102639, 0.14251606, 0.13466732], dtype=float32))
+train_post_files (array([0.30740404, 0.33803535, 0.25320122], dtype=float32), array([0.16347711, 0.14551751, 0.13605101], dtype=float32))
+train_files (array([0.3085182 , 0.34039354, 0.254825  ], dtype=float32), array([0.16226006, 0.14404447, 0.13537084], dtype=float32))
+test_pre_files (array([0.31513348, 0.34602225, 0.2605166 ], dtype=float32), array([0.16111572, 0.14225298, 0.13519335], dtype=float32))
+test_post_files (array([0.30879763, 0.33774298, 0.25404745], dtype=float32), array([0.16485633, 0.14629601, 0.13562644], dtype=float32))
+test_files (array([0.31196576, 0.3418827 , 0.25728178], dtype=float32), array([0.16302736, 0.14434788, 0.1354491 ], dtype=float32))

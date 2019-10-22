@@ -1,0 +1,24 @@
+
+
+from metric.iou import IoU
+
+# Evaluation metric
+    if args.ignore_unlabeled:
+        ignore_index = list(class_encoding).index('unlabeled')
+    else:
+        ignore_index = None
+    metric = IoU(num_classes, ignore_index=ignore_index)
+
+
+
+
+metric.reset()
+
+# Keep track of the evaluation metric
+metric.add(outputs.detach(), labels.detach())
+
+(iou, miou) = metric.value()
+
+# Print per class IoU on last epoch or if best iou
+for key, class_iou in zip(class_encoding.keys(), iou):
+    print("{0}: {1:.4f}".format(key, class_iou))
