@@ -32,6 +32,7 @@ post_pred = open_image_as_nparray(post_pred_path + ".png", dtype=np.uint8)
 
 pre_gt[pre_gt > 1] = 1
 pre_pred[pre_pred > 1] = 1
+post_pred = post_pred*pre_pred
 
 
 # for i in range(H):
