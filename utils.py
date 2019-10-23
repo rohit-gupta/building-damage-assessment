@@ -38,6 +38,17 @@ H, W = 1024, 1024
 ACTUAL_SIZE = 1024
 
 
+def convert_color_segmap_to_int(segmap):
+    segmap_rg = segmap[:, :, 0] + segmap[:, :, 1]
+    segmap_class = np.zeros((H, W))
+    for i in range(NUM_CLASSES):
+        segmap_class[segmap_rg == colors[i][0] + colors[i][1]] = i
+
+    return segmap_class
+
+def open_image_as_nparray(img_path, dtype):
+    return np.array(Image.open(img_path), dtype=dtype)
+
 def reconstruct_from_tiles(tiles, CHANNELS, CROP_SIZE):
     num_tiles = ACTUAL_SIZE // CROP_SIZE
 
