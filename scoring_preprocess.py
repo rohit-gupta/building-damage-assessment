@@ -1,11 +1,14 @@
 
 
-from utils import convert_color_segmap_to_int
-from utils import open_image_as_nparray
+# from utils import convert_color_segmap_to_int
+# from utils import open_image_as_nparray
 import pathlib
 from PIL import Image
 import numpy as np
 
+
+def open_image_as_nparray(img_path, dtype):
+    return np.array(Image.open(img_path), dtype=dtype)
 
 EPOCH = 69
 
