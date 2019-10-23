@@ -6,6 +6,13 @@ import pathlib
 from PIL import Image
 import numpy as np
 
+colors = [[  0,   0, 200], # Blue:   Background
+          [  0, 200,   0], # Green:  No Damage
+          [250, 125,   0], # Orange: Minor Damage
+          [250,  25, 150], # Pink:   Major Damage
+          [250,   0,   0]] # Red:    Destroyed
+NUM_CLASSES = len(colors)
+colors = np.array(colors).astype(np.uint8)
 
 def open_image_as_nparray(img_path, dtype):
     return np.array(Image.open(img_path), dtype=dtype)
@@ -52,6 +59,13 @@ print(np.max(post_gt)), print(np.min(post_gt))
 
 print(np.max(pre_pred)), print(np.min(pre_pred))
 print(np.max(post_pred)), print(np.min(post_pred))
+
+r = Image.fromarray(pre_pred)
+r.putpalette(colors)
+r.save("scoring/predictions/localization.png")
+r = Image.fromarray(post_pred)
+r.putpalette(colors)
+r.save("scoring/predictions/classification.png")
 
 Image.fromarray(pre_gt).save("scoring/targets/test_localization_00000_target.png")
 Image.fromarray(post_gt).save("scoring/targets/test_damage_00000_target.png")
