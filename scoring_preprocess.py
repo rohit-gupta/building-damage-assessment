@@ -18,10 +18,10 @@ post_pred_path = prefix + "post_pred_epoch_" + str(EPOCH)
 pre_gt_path = prefix + "pre_gt"
 post_gt_path = prefix + "post_gt"
 
-pre_gt = open_image_as_nparray(pre_gt_path + ".png", dtype=np.int64)
-post_gt = open_image_as_nparray(post_gt_path + ".png", dtype=np.int64)
-pre_pred = open_image_as_nparray(pre_pred_path + ".png", dtype=np.int64)
-post_pred = open_image_as_nparray(post_pred_path + ".png", dtype=np.int64)
+pre_gt = open_image_as_nparray(pre_gt_path + ".png", dtype=np.uint8)
+post_gt = open_image_as_nparray(post_gt_path + ".png", dtype=np.uint8)
+pre_pred = open_image_as_nparray(pre_pred_path + ".png", dtype=np.uint8)
+post_pred = open_image_as_nparray(post_pred_path + ".png", dtype=np.uint8)
 
 # pre_gt_class = convert_color_segmap_to_int(pre_gt)
 # pre_gt_class[pre_gt_class > 1] = 1
