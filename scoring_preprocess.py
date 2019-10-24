@@ -53,7 +53,7 @@ for idx, sample in enumerate(samples):
     r.save("scoring/predictions_color/" +str(idx)+ "classification.png")
 
     id = str(idx)
-    id = "".join(["0"]*(5 - len(id)) + id)
+    id = "".join(["0"]*(5 - len(id)) + list(id))
 
     Image.fromarray(pre_gt).save("scoring/targets/test_localization_" +id+ "_target.png")
     Image.fromarray(post_gt).save("scoring/targets/test_damage_" +id+ "_target.png")
