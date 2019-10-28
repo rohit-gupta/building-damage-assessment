@@ -18,7 +18,7 @@ colors = np.array(colors).astype(np.uint8)
 def open_image_as_nparray(img_path, dtype):
     return np.array(Image.open(img_path), dtype=dtype)
 
-EPOCH = 69
+EPOCH = 115
 
 prefix = "samples/"
 

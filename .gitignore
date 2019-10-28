@@ -6,6 +6,8 @@ archive/
 models/
 *.out
 .idea/
+pixel_diff/
+scores/
 *scoring/
 *score.json
 # Byte-compiled / optimized / DLL files
