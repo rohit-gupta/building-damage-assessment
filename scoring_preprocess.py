@@ -17,7 +17,8 @@ colors = np.array(colors).astype(np.uint8)
 def open_image_as_nparray(img_path, dtype):
     return np.array(Image.open(img_path), dtype=dtype)
 
-prefix = "samples/"
+# prefix = "samples/"
+prefix = "val_results/"
 samples = glob(prefix + "*/")
 
 for epoch in range(0 ,200):
@@ -36,9 +37,9 @@ for epoch in range(0 ,200):
         pre_pred[pre_pred > 1] = 1
         post_pred = post_pred *pre_pred
 
-        targets_dir = "scoring/ "+ str(epoch) + "/targets/"
-        predictions_dir = "scoring/ "+ str(epoch) + "/predictions/"
-        predictions_color_dir = "scoring/ "+ str(epoch) + "/predictions_color/"
+        targets_dir = "val_scoring/ "+ str(epoch) + "/targets/"
+        predictions_dir = "val_scoring/ "+ str(epoch) + "/predictions/"
+        predictions_color_dir = "val_scoring/ "+ str(epoch) + "/predictions_color/"
 
         pathlib.Path(targets_dir).mkdir(parents=True, exist_ok=True)
         pathlib.Path(predictions_dir).mkdir(parents=True, exist_ok=True)
