@@ -10,6 +10,7 @@ pixel_diff/
 scores/
 *scoring/
 *score.json
+val_results/
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
