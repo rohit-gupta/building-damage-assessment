@@ -87,8 +87,8 @@ class xviewDataset(Dataset):
             post_segmap = spatial_label_smoothing(post_segmap.astype(np.float64),
                                                   self.ls_size)
 
-            pre_segmap = torch.from_numpy(pre_segmap).to(torch.float32)
-            post_segmap = torch.from_numpy(post_segmap).to(torch.float32)
+            pre_segmap = torch.from_numpy(pre_segmap)
+            post_segmap = torch.from_numpy(post_segmap)
 
         if self.mode == "train":
             img1, segmap1, img2, segmap2 = self.__augment(pre_image,
