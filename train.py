@@ -129,6 +129,7 @@ for epoch in range(int(config["hyperparameters"]["NUM_EPOCHS"])):
             optimizer.step()
 
         train_loss.update(val=loss.item(), n=images.size(0))
+        segmaps = segmaps.to('cpu')
         segmaps_classid = segmaps.argmax(1)
         train_iou.add(pred_segmaps.detach(), segmaps_classid.detach())
         train_pbar.update(1)
@@ -152,11 +153,11 @@ for epoch in range(int(config["hyperparameters"]["NUM_EPOCHS"])):
         semseg_model.eval()
         n_val = len(pretiles)
 
-        pretiles[0] = pretiles[0].to(device)
-        posttiles[0] = posttiles[0].to(device)
+        pretiles[0] = pretiles[0].to(torch.float16).to(device)
+        posttiles[0] = posttiles[0].to(torch.float16).to(device)
 
-        prelabels[0] = prelabels[0].to(device)
-        postlabels[0] = postlabels[0].to(device)
+        prelabels[0] = prelabels[0].to(torch.float16).to(device)
+        postlabels[0] = postlabels[0].to(torch.float16).to(device)
 
         with torch.set_grad_enabled(False):
             preoutputs = semseg_model(pretiles[0])
@@ -166,45 +167,49 @@ for epoch in range(int(config["hyperparameters"]["NUM_EPOCHS"])):
 
             # Compute metrics
             val_loss_val = torch.mean(torch.sum(-prelabels[0] * logsoftmax(pre_preds), dim=1))
-            val_loss_val += torch.mean(torch.sum(-prelabels[0] * logsoftmax(pre_preds), dim=1))
+            val_loss_val += torch.mean(torch.sum(-postlabels[0] * logsoftmax(post_preds), dim=1))
             val_loss_val /= 2
             val_loss.update(val=val_loss_val.item(), n=2*prelabels[0].size(0))
+
+            prelabels[0] = prelabels[0].to('cpu')
+            postlabels[0] = postlabels[0].to('cpu')
+
+            pre_preds = pre_preds.to('cpu')
+            post_preds = post_preds.to('cpu')
 
             pre_gt_classid = prelabels[0].argmax(1)
             post_gt_classid = postlabels[0].argmax(1)
             val_pre_iou.add(pre_preds.detach(), pre_gt_classid.detach())
             val_post_iou.add(post_preds.detach(), post_gt_classid.detach())
 
-        # Write small sample to disk for visually tracking training progress
-        if idx in [0, 5, 50, 55, 100, 105, 150, 155, 200, 205, 250, 255, 300, 303]:
+        # Write to disk for visually tracking training progress
+        save_path = "amp_val_results/" + str(idx) + "/"
+        pathlib.Path(save_path).mkdir(parents=True, exist_ok=True)
+        pre_pred = reconstruct_from_tiles(pre_preds, 5, int(config["dataloader"]["CROP_SIZE"]))
+        post_pred = reconstruct_from_tiles(post_preds, 5, int(config["dataloader"]["CROP_SIZE"]))
 
-            save_path = "samples/" + str(idx) + "/"
-            pathlib.Path(save_path).mkdir(parents=True, exist_ok=True)
-            pre_pred = reconstruct_from_tiles(pre_preds, 5, int(config["dataloader"]["CROP_SIZE"]))
-            post_pred = reconstruct_from_tiles(post_preds, 5, int(config["dataloader"]["CROP_SIZE"]))
+        r = segmap_tensor_to_pil_img(pre_pred)
+        r.save(save_path + "pre_pred_epoch_" + str(epoch) + ".png")
+        r = segmap_tensor_to_pil_img(post_pred)
+        r.save(save_path + "post_pred_epoch_" + str(epoch) + ".png")
 
-            r = segmap_tensor_to_pil_img(pre_pred)
-            r.save(save_path + "pre_pred_epoch_" + str(epoch) + ".png")
-            r = segmap_tensor_to_pil_img(post_pred)
-            r.save(save_path + "post_pred_epoch_" + str(epoch) + ".png")
+        # Groundtruth only needs to be saved once
+        if epoch == 0:
+            pre_img = reconstruct_from_tiles(pretiles[0], 3, int(config["dataloader"]["CROP_SIZE"]))
+            post_img = reconstruct_from_tiles(posttiles[0], 3, int(config["dataloader"]["CROP_SIZE"]))
 
-            # Groundtruth only needs to be saved once
-            if epoch == 0:
-                pre_img = reconstruct_from_tiles(pretiles[0], 3, int(config["dataloader"]["CROP_SIZE"]))
-                post_img = reconstruct_from_tiles(posttiles[0], 3, int(config["dataloader"]["CROP_SIZE"]))
+            pre_gt = reconstruct_from_tiles(prelabels[0], 5, int(config["dataloader"]["CROP_SIZE"]))
+            post_gt = reconstruct_from_tiles(postlabels[0], 5, int(config["dataloader"]["CROP_SIZE"]))
 
-                pre_gt = reconstruct_from_tiles(prelabels[0], 5, int(config["dataloader"]["CROP_SIZE"]))
-                post_gt = reconstruct_from_tiles(postlabels[0], 5, int(config["dataloader"]["CROP_SIZE"]))
+            pilimg = input_tensor_to_pil_img(pre_img)
+            pilimg.save(save_path + "pre_image.png")
+            pilimg = input_tensor_to_pil_img(post_img)
+            pilimg.save(save_path + "post_image.png")
 
-                pilimg = input_tensor_to_pil_img(pre_img)
-                pilimg.save(save_path + "pre_image.png")
-                pilimg = input_tensor_to_pil_img(post_img)
-                pilimg.save(save_path + "post_image.png")
-
-                r = segmap_tensor_to_pil_img(pre_gt)
-                r.save(save_path + "pre_gt.png")
-                r = segmap_tensor_to_pil_img(post_gt)
-                r.save(save_path + "post_gt.png")
+            r = segmap_tensor_to_pil_img(pre_gt)
+            r.save(save_path + "pre_gt.png")
+            r = segmap_tensor_to_pil_img(post_gt)
+            r.save(save_path + "post_gt.png")
         val_pbar.update(1)
 
     # End of val phase
