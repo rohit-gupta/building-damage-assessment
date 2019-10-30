@@ -65,7 +65,7 @@ optimizer = optim.SGD(semseg_model.parameters(),
 # initialize mixed precision training
 
 if config["misc"]["APEX_OPT_LEVEL"] is not "None":
-    semseg_model, optimizer = amp.initialize(semseg_model, optimizer, opt_level=config["misc"]["APEX_OPT_LEVEL"], keep_batchnorm_fp32=True)
+    semseg_model, optimizer = amp.initialize(semseg_model, optimizer, opt_level=config["misc"]["APEX_OPT_LEVEL"])
 
 
 # print("Entering Training Loop")
