@@ -48,7 +48,7 @@ else:
 semseg_model = deeplabv3_resnet50(pretrained=False,
                                   num_classes=5,
                                   aux_loss=None)
-semseg_model = semseg_model.to(device)
+
 # print(semseg_model)
 # create dataloader
 trainloader, valloader = xview_train_loader_factory(config["paths"]["XVIEW_ROOT"],
@@ -65,6 +65,8 @@ optimizer = optim.SGD(semseg_model.parameters(),
 
 if config["misc"]["APEX_OPT_LEVEL"] is not "None":
     semseg_model, optimizer = amp.initialize(semseg_model, optimizer, opt_level=config["misc"]["APEX_OPT_LEVEL"], keep_batchnorm_fp32=True)
+
+semseg_model = semseg_model.to(device)
 # print("Entering Training Loop")
 
 train_loss = AverageMeter("train_loss")
