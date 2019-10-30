@@ -64,7 +64,7 @@ optimizer = optim.SGD(semseg_model.parameters(),
 # initialize mixed precision training
 
 if config["misc"]["APEX_OPT_LEVEL"] is not "None":
-    semseg_model, optimizer = amp.initialize(semseg_model, optimizer, opt_level=config["misc"]["APEX_OPT_LEVEL"])
+    semseg_model, optimizer = amp.initialize(semseg_model, optimizer, opt_level=config["misc"]["APEX_OPT_LEVEL"], keep_batchnorm_fp32=True)
 # print("Entering Training Loop")
 
 train_loss = AverageMeter("train_loss")
@@ -103,8 +103,8 @@ for epoch in range(int(config["hyperparameters"]["NUM_EPOCHS"])):
     train_pbar = tqdm.tqdm(total=len(trainloader))
     for images, segmaps in trainloader:
         # Send tensors to GPU
-        images = images.to(device)
-        segmaps = segmaps.to(device)
+        images = images.to(torch.float16).to(device)
+        segmaps = segmaps.to(torch.float16).to(device)
 
         # zero the parameter gradients
         optimizer.zero_grad()
