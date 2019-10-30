@@ -63,8 +63,8 @@ optimizer = optim.SGD(semseg_model.parameters(),
                       momentum=float(config["hyperparameters"]["MOMENTUM"]))
 
 # initialize mixed precision training
-
-if config["misc"]["APEX_OPT_LEVEL"] is not "None":
+#print(config["misc"]["APEX_OPT_LEVEL"])
+if config["misc"]["APEX_OPT_LEVEL"] != "None":
     semseg_model, optimizer = amp.initialize(semseg_model, optimizer, opt_level=config["misc"]["APEX_OPT_LEVEL"])
 
 
@@ -123,7 +123,7 @@ for epoch in range(int(config["hyperparameters"]["NUM_EPOCHS"])):
             # Cross Entropy Loss
             loss = torch.mean(torch.sum(-segmaps * logsoftmax(pred_segmaps),
                                         dim=1))
-            if config["misc"]["APEX_OPT_LEVEL"] is not "None":
+            if config["misc"]["APEX_OPT_LEVEL"] != "None":
                 with amp.scale_loss(loss, optimizer) as scaled_loss:
                     scaled_loss.backward()
             else:
@@ -156,11 +156,11 @@ for epoch in range(int(config["hyperparameters"]["NUM_EPOCHS"])):
         semseg_model.eval()
         n_val = len(pretiles)
 
-        pretiles[0] = pretiles[0].to(torch.float16).to(device)
-        posttiles[0] = posttiles[0].to(torch.float16).to(device)
+        pretiles[0] = pretiles[0].to(device)
+        posttiles[0] = posttiles[0].to(device)
 
-        prelabels[0] = prelabels[0].to(torch.float16).to(device)
-        postlabels[0] = postlabels[0].to(torch.float16).to(device)
+        prelabels[0] = prelabels[0].to(device)
+        postlabels[0] = postlabels[0].to(device)
 
         with torch.set_grad_enabled(False):
             preoutputs = semseg_model(pretiles[0])
