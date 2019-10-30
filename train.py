@@ -106,8 +106,8 @@ for epoch in range(int(config["hyperparameters"]["NUM_EPOCHS"])):
     train_pbar = tqdm.tqdm(total=len(trainloader))
     for images, segmaps in trainloader:
         # Send tensors to GPU
-        images = images.to(torch.float16).to(device)
-        segmaps = segmaps.to(torch.float16).to(device)
+        images = images.to(device)
+        segmaps = segmaps.to(device)
 
         # zero the parameter gradients
         optimizer.zero_grad()
@@ -132,7 +132,7 @@ for epoch in range(int(config["hyperparameters"]["NUM_EPOCHS"])):
             optimizer.step()
 
         train_loss.update(val=loss.item(), n=images.size(0))
-        segmaps = segmaps.to('cpu').to(torch.float32)
+        # segmaps = segmaps.to('cpu').to(torch.float32)
         segmaps_classid = segmaps.argmax(1)
         train_iou.add(pred_segmaps.detach(), segmaps_classid.detach())
         train_pbar.update(1)
@@ -174,11 +174,11 @@ for epoch in range(int(config["hyperparameters"]["NUM_EPOCHS"])):
             val_loss_val /= 2
             val_loss.update(val=val_loss_val.item(), n=2*prelabels[0].size(0))
 
-            prelabels[0] = prelabels[0].to('cpu').to(torch.float32)
-            postlabels[0] = postlabels[0].to('cpu').to(torch.float32)
-
-            pre_preds = pre_preds.to('cpu').to(torch.float32)
-            post_preds = post_preds.to('cpu').to(torch.float32)
+            # prelabels[0] = prelabels[0].to('cpu').to(torch.float32)
+            # postlabels[0] = postlabels[0].to('cpu').to(torch.float32)
+            #
+            # pre_preds = pre_preds.to('cpu').to(torch.float32)
+            # post_preds = post_preds.to('cpu').to(torch.float32)
 
             pre_gt_classid = prelabels[0].argmax(1)
             post_gt_classid = postlabels[0].argmax(1)
