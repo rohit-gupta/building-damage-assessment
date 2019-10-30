@@ -21,7 +21,7 @@ import torch
 import torch.optim as optim
 import torch.nn as nn
 
-
+from apex import amp
 
 from dsilva_metrics.iou import IoU
 from logger import MetricLog
@@ -61,7 +61,10 @@ optimizer = optim.SGD(semseg_model.parameters(),
                       lr=float(config["hyperparameters"]["MAX_LR"]),
                       momentum=float(config["hyperparameters"]["MOMENTUM"]))
 
+# initialize mixed precision training
 
+if config["misc"]["APEX_OPT_LEVEL"] is not "None":
+    semseg_model, optimizer = amp.initialize(semseg_model, optimizer, opt_level=config["misc"]["APEX_OPT_LEVEL"])
 # print("Entering Training Loop")
 
 train_loss = AverageMeter("train_loss")
@@ -117,8 +120,12 @@ for epoch in range(int(config["hyperparameters"]["NUM_EPOCHS"])):
             # Cross Entropy Loss
             loss = torch.mean(torch.sum(-segmaps * logsoftmax(pred_segmaps),
                                         dim=1))
+            if config["misc"]["APEX_OPT_LEVEL"] is not "None":
+                with amp.scale_loss(loss, optimizer) as scaled_loss:
+                    scaled_loss.backward()
+            else:
+                loss.backward()
 
-            loss.backward()
             optimizer.step()
 
         train_loss.update(val=loss.item(), n=images.size(0))
