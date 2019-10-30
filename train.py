@@ -152,8 +152,8 @@ for epoch in range(int(config["hyperparameters"]["NUM_EPOCHS"])):
     val_pbar = tqdm.tqdm(total=len(valloader))
     # Validation Phase of epoch
     # Assume batch_size = 1 (higher sizes are impractical)
+    semseg_model.eval()
     for idx, (pretiles, posttiles, prelabels, postlabels) in enumerate(valloader):
-        semseg_model.eval()
         n_val = len(pretiles)
 
         pretiles[0] = pretiles[0].to(device)
@@ -173,12 +173,6 @@ for epoch in range(int(config["hyperparameters"]["NUM_EPOCHS"])):
             val_loss_val += torch.mean(torch.sum(-postlabels[0] * logsoftmax(post_preds), dim=1))
             val_loss_val /= 2
             val_loss.update(val=val_loss_val.item(), n=2*prelabels[0].size(0))
-
-            # prelabels[0] = prelabels[0].to('cpu').to(torch.float32)
-            # postlabels[0] = postlabels[0].to('cpu').to(torch.float32)
-            #
-            # pre_preds = pre_preds.to('cpu').to(torch.float32)
-            # post_preds = post_preds.to('cpu').to(torch.float32)
 
             pre_gt_classid = prelabels[0].argmax(1)
             post_gt_classid = postlabels[0].argmax(1)
