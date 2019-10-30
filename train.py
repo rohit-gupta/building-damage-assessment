@@ -186,7 +186,7 @@ for epoch in range(int(config["hyperparameters"]["NUM_EPOCHS"])):
             val_post_iou.add(post_preds.detach(), post_gt_classid.detach())
 
         # Write to disk for visually tracking training progress
-        save_path = "amp_val_results/" + str(idx) + "/"
+        save_path = "val_results/" + config_name + "/"+ str(idx) + "/"
         pathlib.Path(save_path).mkdir(parents=True, exist_ok=True)
         pre_pred = reconstruct_from_tiles(pre_preds, 5, int(config["dataloader"]["CROP_SIZE"]))
         post_pred = reconstruct_from_tiles(post_preds, 5, int(config["dataloader"]["CROP_SIZE"]))
