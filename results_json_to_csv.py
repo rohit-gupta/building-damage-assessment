@@ -2,7 +2,8 @@ import json
 
 
 #PREFIX = "scores/sample_score_e"
-PREFIX = "val_scores/epoch_"
+#PREFIX = "val_scores/epoch_"
+PREFIX = "val_scores/default_lb/epoch_"
 
 print("score", "damage_f1", "localization_f1",
       "damage_f1_no_damage", "damage_f1_minor_damage",
