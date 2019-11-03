@@ -7,9 +7,6 @@ __author__ = "Rohit Gupta"
 __version__ = "dev"
 __license__ = None
 
-
-
-
 import numpy as np
 from PIL import Image
 import pathlib

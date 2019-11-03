@@ -21,30 +21,50 @@ def open_image_as_nparray(img_path, dtype):
 prefix = "val_results/"
 samples = glob(prefix + "*/")
 
+output_dir = "val_scoring/default_lb/"
+# Create Required Directories
+targets_dir = output_dir + "targets/"
+pathlib.Path(targets_dir).mkdir(parents=True, exist_ok=True)
 for epoch in range(0 ,200):
-    for idx, sample in enumerate(samples):
+    predictions_dir = output_dir + str(epoch) + "/predictions/"
+    predictions_color_dir = output_dir + str(epoch) + "/predictions_color/"
+    pathlib.Path(predictions_dir).mkdir(parents=True, exist_ok=True)
+    pathlib.Path(predictions_color_dir).mkdir(parents=True, exist_ok=True)
+
+for idx, sample in enumerate(samples):
+
+    # Ground truth is same for all epochs
+    pre_gt_path = sample + "pre_gt"
+    post_gt_path = sample + "post_gt"
+    pre_gt = open_image_as_nparray(pre_gt_path + ".png", dtype=np.uint8)
+    post_gt = open_image_as_nparray(post_gt_path + ".png", dtype=np.uint8)
+
+    id = str(idx)
+    id = "".join(["0"] * (5 - len(id)) + list(id))
+
+    # Localization Binarization
+    pre_gt[pre_gt > 1] = 1
+
+    # Write groundtruth
+    Image.fromarray(pre_gt).save(targets_dir + "test_localization_" + id + "_target.png")
+    Image.fromarray(post_gt).save(targets_dir + "test_damage_" + id + "_target.png")
+
+    for epoch in range(0, 180):
+        # Read Results from DeepLab
         pre_pred_path = sample + "pre_pred_epoch_" + str(epoch)
         post_pred_path = sample + "post_pred_epoch_" + str(epoch)
-        pre_gt_path = sample + "pre_gt"
-        post_gt_path = sample + "post_gt"
-
-        pre_gt = open_image_as_nparray(pre_gt_path + ".png", dtype=np.uint8)
-        post_gt = open_image_as_nparray(post_gt_path + ".png", dtype=np.uint8)
         pre_pred = open_image_as_nparray(pre_pred_path + ".png", dtype=np.uint8)
         post_pred = open_image_as_nparray(post_pred_path + ".png", dtype=np.uint8)
 
-        pre_gt[pre_gt > 1] = 1
+        # Output dirs
+        predictions_dir = output_dir + str(epoch) + "/predictions/"
+        predictions_color_dir = output_dir + str(epoch) + "/predictions_color/"
+
+        # Localization Binarization
         pre_pred[pre_pred > 1] = 1
-        post_pred = post_pred *pre_pred
+        post_pred = post_pred * pre_pred
 
-        targets_dir = "val_scoring/ "+ str(epoch) + "/targets/"
-        predictions_dir = "val_scoring/ "+ str(epoch) + "/predictions/"
-        predictions_color_dir = "val_scoring/ "+ str(epoch) + "/predictions_color/"
-
-        pathlib.Path(targets_dir).mkdir(parents=True, exist_ok=True)
-        pathlib.Path(predictions_dir).mkdir(parents=True, exist_ok=True)
-        pathlib.Path(predictions_color_dir).mkdir(parents=True, exist_ok=True)
-
+        # Write predictions output
         r = Image.fromarray(pre_pred)
         r.putpalette(colors)
         r.save(predictions_color_dir +str(idx) + "localization.png")
@@ -52,11 +72,6 @@ for epoch in range(0 ,200):
         r.putpalette(colors)
         r.save(predictions_color_dir + str(idx) + "classification.png")
 
-        id = str(idx)
-        id = "".join(["0"] * (5 - len(id)) + list(id))
-
-        Image.fromarray(pre_gt).save(targets_dir + "test_localization_" + id + "_target.png")
-        Image.fromarray(post_gt).save(targets_dir + "test_damage_" + id + "_target.png")
         Image.fromarray(pre_pred).save(predictions_dir + "test_localization_" + id + "_prediction.png")
         Image.fromarray(post_pred).save(predictions_dir + "test_damage_" + id + "_prediction.png")
 
