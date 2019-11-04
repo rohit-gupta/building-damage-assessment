@@ -20,10 +20,11 @@ def open_image_as_nparray(img_path, dtype):
 
 
 # prefix = "samples/"
-prefix = "val_results/default_lb/"
+config = "default_lb/"
+prefix = "val_results/" + config
 samples = glob(prefix + "*/")
 
-output_dir = "val_scoring/default_lb/"
+output_dir = "val_scoring/" + config
 # Create Required Directories
 targets_dir = output_dir + "targets/"
 pathlib.Path(targets_dir).mkdir(parents=True, exist_ok=True)
@@ -69,32 +70,10 @@ for idx, sample in enumerate(samples):
         # Write predictions output
         r = Image.fromarray(pre_pred)
         r.putpalette(colors)
-        r.save(predictions_color_dir + str(idx) + "localization.png")
+        r.save(predictions_color_dir + str(idx) + "_localization.png")
         r = Image.fromarray(post_pred)
         r.putpalette(colors)
-        r.save(predictions_color_dir + str(idx) + "classification.png")
+        r.save(predictions_color_dir + str(idx) + "_classification.png")
 
         Image.fromarray(pre_pred).save(predictions_dir + "test_localization_" + num_id + "_prediction.png")
         Image.fromarray(post_pred).save(predictions_dir + "test_damage_" + num_id + "_prediction.png")
-
-# print(np.max(pre_gt)), print(np.min(pre_gt))
-# print(np.max(post_gt)), print(np.min(post_gt))
-#
-# print(np.max(pre_pred)), print(np.min(pre_pred))
-# print(np.max(post_pred)), print(np.min(post_pred))
-
-# pre_gt_class = convert_color_segmap_to_int(pre_gt)
-# pre_gt_class[pre_gt_class > 1] = 1
-# post_gt_class = convert_color_segmap_to_int(post_gt)
-# pre_pred_class = convert_color_segmap_to_int(pre_pred)
-# pre_pred_class[pre_pred_class > 1] = 1
-# post_pred_class = convert_color_segmap_to_int(post_pred)
-
-
-# for i in range(H):
-#     for j in range(W):
-#         for k in range(colors.size[]):
-#         np.array_equal(pre_gt[i,j,:],
-
-
-# Hack, we know all colors have unique R+G values
