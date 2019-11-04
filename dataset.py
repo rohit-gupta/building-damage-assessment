@@ -106,10 +106,8 @@ class xviewDataset(Dataset):
             return (preims, postims, presegs, postsegs)
 
         elif self.mode == "test":
-            preimgs, _, postimgs, _ = self.__augment(pre_image,
-                                                     None,
-                                                     post_image,
-                                                     None)
+            preimgs, postimgs = self.__augment(pre_image, None,
+                                               post_image, None)
             return (preimgs, postimgs)
 
     def __readlabels(self, label_file):
