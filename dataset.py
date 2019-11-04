@@ -299,7 +299,7 @@ def xview_test_loader_factory(xview_root, crop_size, batch_size, num_workers):
 
     test_set = xviewDataset(test_data, mode="test", actual_size=1024, crop_size=crop_size)
     test_loader = DataLoader(test_set, batch_size=1, shuffle=False,
-                             collate_fn=val_collate_fn, num_workers=1, pin_memory=True)
+                             collate_fn=test_collate_fn, num_workers=1, pin_memory=True)
 
     return test_loader
 
