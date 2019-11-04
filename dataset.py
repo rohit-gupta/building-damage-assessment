@@ -294,3 +294,15 @@ def xview_train_loader_factory(xview_root, crop_size, batch_size, num_workers):
                            pin_memory=True)
 
     return trainloader, valloader
+
+def xview_test_loader_factory(xview_root, crop_size, batch_size, num_workers):
+    # Read metadata
+    _, test_data = load_xview_metadata(xview_root)
+
+    test_set = xviewDataset(test_data, mode="test", actual_size=1024, crop_size=crop_size)
+    test_loader = DataLoader(test_set, batch_size=1, shuffle=False,
+                             collate_fn=val_collate_fn, num_workers=1, pin_memory=True)
+
+    return test_loader
+
+

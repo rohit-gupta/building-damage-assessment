@@ -82,6 +82,24 @@ def segmap_tensor_to_pil_img(segmap_tensor):
 
     return r
 
+
+def postprocess_segmap_tensor_to_pil_img(segmap_tensor, apply_color=True, binarize=False):
+    segmap = segmap_tensor.cpu().numpy()
+    background = segmap[0, :, :] > 0.5
+    foreground = ~background
+    damage_class = np.argmax(segmap[1:, :, :], axis=0)
+    damage_class += 1
+    processed_segmap = foreground * damage_class
+    if binarize:
+        processed_segmap[processed_segmap > 1] = 1
+    r = Image.fromarray(processed_segmap)
+    if apply_color:
+        r.putpalette(colors)
+        return r
+    else:
+        return r
+
+
 def EMSG(errtype="ERROR"):
     if errtype in ["E", "ERR", "ERROR"]:
         errtype = "[ERROR] "
