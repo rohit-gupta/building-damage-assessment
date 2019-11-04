@@ -63,8 +63,10 @@ for idx, (pretiles, posttiles) in enumerate(test_loader):
     with torch.set_grad_enabled(False):
         preoutputs = semseg_model(pretiles[0])
         pre_preds = preoutputs['out']
+        pre_preds = torch.nn.functional.softmax(pre_preds, dim=1)
         postoutputs = semseg_model(posttiles[0])
         post_preds = postoutputs['out']
+        post_preds = torch.nn.functional.softmax(post_preds, dim=1)
 
     # Write to disk for scoring
     save_path = "test_results/" + config_name + "/"
