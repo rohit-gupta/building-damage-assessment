@@ -51,7 +51,7 @@ for idx, sample in enumerate(samples):
     Image.fromarray(pre_gt).save(targets_dir + "test_localization_" + num_id + "_target.png")
     Image.fromarray(post_gt).save(targets_dir + "test_damage_" + num_id + "_target.png")
 
-    for epoch in range(180, 200):
+    for epoch in range(200):
         # Read Results from DeepLab
         pre_pred_path = sample + "pre_pred_epoch_" + str(epoch)
         post_pred_path = sample + "post_pred_epoch_" + str(epoch)
