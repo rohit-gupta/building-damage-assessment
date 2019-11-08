@@ -54,7 +54,7 @@ def read_config(config_name):
 
 def parse_config(config, template):
     for section, params in template.items():
-        for param_name, param_type in params:
+        for param_name, param_type in params.items():
             config[section][param_name] = param_type(config[section][param_name])
 
     return config
