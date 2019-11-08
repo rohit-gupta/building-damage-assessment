@@ -49,6 +49,7 @@ def read_config(config_name):
     config_file = config_name + ".ini"
     config = configparser.ConfigParser()
     config.read(config_file)
+    config = dict(config)
     return parse_config(config, type_map)
 
 
