@@ -27,15 +27,15 @@ from dataset import xview_train_loader_factory
 from utils import input_tensor_to_pil_img
 from utils import segmap_tensor_to_pil_img
 from utils import reconstruct_from_tiles
+from losses import cross_entropy, localization_aware_cross_entropy
 
 # Configuration
-import configparser
 import os
+from config_parser import read_config
 
 config_name = os.environ["XVIEW_CONFIG"]
-config_file = config_name + ".ini"
-config = configparser.ConfigParser()
-config.read(config_file)
+config = read_config(config_name)
+
 
 if torch.cuda.is_available():
     device = "cuda"
@@ -50,14 +50,14 @@ semseg_model = semseg_model.to(device)
 # print(semseg_model)
 # create dataloader
 trainloader, valloader = xview_train_loader_factory(config["paths"]["XVIEW_ROOT"],
-                                                    int(config["dataloader"]["CROP_SIZE"]),
-                                                    int(config["dataloader"]["BATCH_SIZE"]),
-                                                    int(config["dataloader"]["THREADS"]))
+                                                    config["dataloader"]["CROP_SIZE"],
+                                                    config["dataloader"]["BATCH_SIZE"],
+                                                    config["dataloader"]["THREADS"])
 
 # For starters, train a constant LR Model
 optimizer = optim.SGD(semseg_model.parameters(),
-                      lr=float(config["hyperparameters"]["MAX_LR"]),
-                      momentum=float(config["hyperparameters"]["MOMENTUM"]))
+                      lr=config["hyperparameters"]["MAX_LR"],
+                      momentum=config["hyperparameters"]["MOMENTUM"])
 
 # initialize mixed precision training
 #print(config["misc"]["APEX_OPT_LEVEL"])
@@ -75,7 +75,6 @@ train_iou = IoU(5)
 val_pre_iou = IoU(5)
 val_post_iou = IoU(5)
 
-
 train_loss_log = MetricLog("train_loss")
 train_mIoU_log = MetricLog("train_mIoU")
 train_localization_IoU_log = MetricLog("train_localization_IoU")
@@ -83,9 +82,6 @@ train_localization_IoU_log = MetricLog("train_localization_IoU")
 val_loss_log = MetricLog("val_loss")
 val_mIoU_log = MetricLog("val_mIoU")
 val_localization_IoU_log = MetricLog("val_localization_IoU")
-
-
-logsoftmax = nn.LogSoftmax(dim=1)
 
 for epoch in range(int(config["hyperparameters"]["NUM_EPOCHS"])):
 
@@ -118,8 +114,13 @@ for epoch in range(int(config["hyperparameters"]["NUM_EPOCHS"])):
             # loss = nn.BCELoss()(pred_probas, segmaps)
 
             # Cross Entropy Loss
-            loss = torch.mean(torch.sum(-segmaps * logsoftmax(pred_segmaps),
-                                        dim=1))
+            if config["hyperparameters"]["LOSS"] == "crossentropy":
+                loss = cross_entropy(segmaps, pred_segmaps)
+            elif config["hyperparameters"]["LOSS"] == "locaware":
+                loss = localization_aware_cross_entropy(segmaps, pred_segmaps,
+                                                        config["hyperparameters"]["LOCALIZATION_WEIGHT"],
+                                                        config["hyperparameters"]["CLASSIFICATION_WEIGHT"])
+
             if config["misc"]["APEX_OPT_LEVEL"] != "None":
                 with amp.scale_loss(loss, optimizer) as scaled_loss:
                     scaled_loss.backward()
@@ -128,14 +129,12 @@ for epoch in range(int(config["hyperparameters"]["NUM_EPOCHS"])):
 
             optimizer.step()
 
-        train_loss.update(val=loss.item(), n=images.size(0))
-        # segmaps = segmaps.to('cpu').to(torch.float32)
+        train_loss.update(val=loss.item(), n=1)
         segmaps_classid = segmaps.argmax(1)
         train_iou.add(pred_segmaps.detach(), segmaps_classid.detach())
         train_pbar.update(1)
 
     # End of an epoch
-
     (train_iou_list, train_miou) = train_iou.value()
     train_localization_iou = train_iou_list[0]
 
@@ -146,9 +145,10 @@ for epoch in range(int(config["hyperparameters"]["NUM_EPOCHS"])):
 
     train_pbar.close()
 
-    val_pbar = tqdm.tqdm(total=len(valloader))
     # Validation Phase of epoch
     # Assume batch_size = 1 (higher sizes are impractical)
+
+    val_pbar = tqdm.tqdm(total=len(valloader))
     semseg_model.eval()
     for idx, (pretiles, posttiles, prelabels, postlabels) in enumerate(valloader):
         n_val = len(pretiles)
@@ -166,10 +166,10 @@ for epoch in range(int(config["hyperparameters"]["NUM_EPOCHS"])):
             post_preds = postoutputs['out']
 
             # Compute metrics
-            val_loss_val = torch.mean(torch.sum(-prelabels[0] * logsoftmax(pre_preds), dim=1))
-            val_loss_val += torch.mean(torch.sum(-postlabels[0] * logsoftmax(post_preds), dim=1))
+            val_loss_val = cross_entropy(prelabels[0], pre_preds)
+            val_loss_val += cross_entropy(postlabels[0], post_preds)
             val_loss_val /= 2
-            val_loss.update(val=val_loss_val.item(), n=2*prelabels[0].size(0))
+            val_loss.update(val=val_loss_val.item(), n=1)
 
             pre_gt_classid = prelabels[0].argmax(1)
             post_gt_classid = postlabels[0].argmax(1)
@@ -179,8 +179,8 @@ for epoch in range(int(config["hyperparameters"]["NUM_EPOCHS"])):
         # Write to disk for visually tracking training progress
         save_path = "val_results/" + config_name + "/"+ str(idx) + "/"
         pathlib.Path(save_path).mkdir(parents=True, exist_ok=True)
-        pre_pred = reconstruct_from_tiles(pre_preds, 5, int(config["dataloader"]["CROP_SIZE"]))
-        post_pred = reconstruct_from_tiles(post_preds, 5, int(config["dataloader"]["CROP_SIZE"]))
+        pre_pred = reconstruct_from_tiles(pre_preds, 5, config["dataloader"]["CROP_SIZE"])
+        post_pred = reconstruct_from_tiles(post_preds, 5, config["dataloader"]["CROP_SIZE"])
 
         r = segmap_tensor_to_pil_img(pre_pred)
         r.save(save_path + "pre_pred_epoch_" + str(epoch) + ".png")
@@ -189,11 +189,11 @@ for epoch in range(int(config["hyperparameters"]["NUM_EPOCHS"])):
 
         # Groundtruth only needs to be saved once
         if epoch == 0:
-            pre_img = reconstruct_from_tiles(pretiles[0], 3, int(config["dataloader"]["CROP_SIZE"]))
-            post_img = reconstruct_from_tiles(posttiles[0], 3, int(config["dataloader"]["CROP_SIZE"]))
+            pre_img = reconstruct_from_tiles(pretiles[0], 3, config["dataloader"]["CROP_SIZE"])
+            post_img = reconstruct_from_tiles(posttiles[0], 3, config["dataloader"]["CROP_SIZE"])
 
-            pre_gt = reconstruct_from_tiles(prelabels[0], 5, int(config["dataloader"]["CROP_SIZE"]))
-            post_gt = reconstruct_from_tiles(postlabels[0], 5, int(config["dataloader"]["CROP_SIZE"]))
+            pre_gt = reconstruct_from_tiles(prelabels[0], 5, config["dataloader"]["CROP_SIZE"])
+            post_gt = reconstruct_from_tiles(postlabels[0], 5, config["dataloader"]["CROP_SIZE"])
 
             pilimg = input_tensor_to_pil_img(pre_img)
             pilimg.save(save_path + "pre_image.png")
@@ -218,51 +218,8 @@ for epoch in range(int(config["hyperparameters"]["NUM_EPOCHS"])):
 
     val_pbar.close()
 
-    if epoch % int(config["misc"]["SAVE_FREQ"]) == 0:
-        models_folder = str(config["paths"]["MODELS"]) + config_name + "/"
+    if epoch % config["misc"]["SAVE_FREQ"] == 0:
+        models_folder = config["paths"]["MODELS"] + config_name + "/"
         pathlib.Path(models_folder).mkdir(parents=True, exist_ok=True)
         torch.save(semseg_model.state_dict(), models_folder + str(epoch) + ".pth")
-
-
-
-
-    # TODO Write validation code and compute metrics
-    # semseg_model.eval()
-    # segmaps_classid = segmaps.argmax(1)
-    # metric.add(pred_segmaps.detach(), segmaps_classid.detach())
-    # (iou, miou) = metric.value()
-    #
-    #
-
-            
-            
-        # image = images[-1]
-        # segmap = segmaps[-1]
-
-        # pilimg = input_tensor_to_pil_img(image)
-        # pilimg.save("post_sample_image_tensor" + str(idx) + ".png")
-
-        # r = segmap_tensor_to_pil_img(segmap)
-        # r.save("post_sample_segmap_tensor" + str(idx) + ".png")
-
-        # print(images.shape, segmaps.shape)
-
-    # if idx > 10:
-    #     import sys
-    #     sys.exit(0)
-
-    # idx += 1
-
-
-# image_file = train_data[random_key]["pre_image_file"]
-# im_tensor = preprocess(Image.open(image_file))
-# input_batch = im_tensor.unsqueeze(0)
-
-
-# input_batch = input_batch.to(device)
-# semseg_model.eval()
-
-# with torch.no_grad():
-#     output = semseg_model(input_batch)['out'][0]
-#     output_predictions = output.argmax(0)
 
