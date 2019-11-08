@@ -9,6 +9,9 @@ __license__ = None
 
 import configparser
 
+def str2bool(v):
+  return v.lower() in ("yes", "true", "t", "1")
+
 type_map = {
     "hyperparameters": {
         "LOSS": str,
@@ -24,6 +27,7 @@ type_map = {
     },
     "dataloader": {
         "DATA_VERSION": str,
+        "USE_TIER3_TRAIN": str2bool,
         "CROP_SIZE": int,
         "THREADS": int,
         "BATCH_SIZE": int

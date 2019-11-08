@@ -279,26 +279,32 @@ def spatial_label_smoothing(segmap, n):
     return norm_segmap
 
 
-def load_xview_metadata(xview_root):
+def load_xview_metadata(xview_root, data_version, use_tier3):
     """
     Load data file paths
     """
-    train_label_files = glob.glob(xview_root + "train/labels/*")
-    train_image_files = glob.glob(xview_root + "train/images/*")
-    test_image_files  = glob.glob(xview_root + "test/images/*")
+    data_dir = xview_root + data_version
+    train_label_files = glob.glob(data_dir + "train/labels/*")
+    train_image_files = glob.glob(data_dir + "train/images/*")
+    if use_tier3:
+        tier3_label_files = glob.glob(data_dir + "tier3/labels/*")
+        tier3_image_files = glob.glob(data_dir + "tier3/images/*")
+        train_label_files += tier3_label_files
+        train_image_files += tier3_image_files
+    test_image_files = glob.glob(data_dir + "test/images/*")
     train_data = {}
     for file_name in train_label_files:
         disaster, image_num, pre_or_post, _ = file_name.split("_")
-        disaster = disaster.replace(xview_root + "train/labels/", "")
-        input_id = disaster +"_"+ image_num
+        disaster = disaster.replace(data_dir + "train/labels/", "")
+        input_id = disaster + "_" + image_num
         if input_id not in train_data.keys():
             train_data[input_id] = {}
         train_data[input_id][pre_or_post + "_label_file"] = file_name
 
     for file_name in train_image_files:
         disaster, image_num, pre_or_post, _ = file_name.split("_")
-        disaster = disaster.replace(xview_root + "train/images/", "")
-        input_id = disaster +"_"+ image_num
+        disaster = disaster.replace(data_dir + "train/images/", "")
+        input_id = disaster + "_" + image_num
         if input_id not in train_data.keys():
             train_data[input_id] = {}
         train_data[input_id][pre_or_post + "_image_file"] = file_name

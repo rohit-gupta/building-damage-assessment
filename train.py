@@ -51,6 +51,8 @@ semseg_model = semseg_model.to(device)
 # print(semseg_model)
 # create dataloader
 trainloader, valloader = xview_train_loader_factory(config["paths"]["XVIEW_ROOT"],
+                                                    config["dataloader"]["DATA_VERSION"],
+                                                    config["dataloader"]["USE_TIER3_TRAIN"],
                                                     config["dataloader"]["CROP_SIZE"],
                                                     config["dataloader"]["BATCH_SIZE"],
                                                     config["dataloader"]["THREADS"])
@@ -94,7 +96,7 @@ val_localization_IoU_log = MetricLog("val_localization_IoU")
 
 for epoch in range(int(config["hyperparameters"]["NUM_EPOCHS"])):
 
-    print("Beginning Epoch #" +str(epoch) + ":" )
+    print("Beginning Epoch #" + str(epoch) + ":\n")
     # Reset Loss & metric tracking at beginning of epoch
     train_loss.reset()
     train_loc_loss.reset()

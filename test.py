@@ -42,9 +42,7 @@ semseg_model = deeplabv3_resnet50(pretrained=False,
 semseg_model = semseg_model.to(device)
 # create dataloader
 test_loader = xview_test_loader_factory(config["paths"]["XVIEW_ROOT"],
-                                        int(config["dataloader"]["CROP_SIZE"]),
-                                        int(config["dataloader"]["BATCH_SIZE"]),
-                                        int(config["dataloader"]["THREADS"]))
+                                        int(config["dataloader"]["CROP_SIZE"]))
 
 print("Beginning Test Inference using model from Epoch #" + str(BEST_EPOCH) + ":")
 models_folder = str(config["paths"]["MODELS"]) + config_name + "/"

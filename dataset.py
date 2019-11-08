@@ -250,19 +250,20 @@ def test_collate_fn(batch):
     return (pretiles_instance_tensors, posttiles_instance_tensors)
 
 
-def xview_train_loader_factory(xview_root, crop_size, batch_size, num_workers):
+def xview_train_loader_factory(xview_root, data_version, use_tier3, crop_size, batch_size, num_workers):
     # print(xview_root)
     # Read metadata
-    trainval_data, test_data = load_xview_metadata(xview_root)
+    trainval_data, test_data = load_xview_metadata(xview_root, data_version, use_tier3)
 
     # print("TrainVal images:", len(trainval_data))
     # print("Test images:", len(test_data))
 
-    with open("train-split.txt", "r") as f:
-        train_keys = [x.strip() for x in f.readlines()]
-    with open("val-split.txt", "r") as f:
+    # with open(xview_root + data_version + "train-split.txt", "r") as f:
+    #     train_keys = [x.strip() for x in f.readlines()]
+    with open(xview_root + data_version + "val-split.txt", "r") as f:
         val_keys = [x.strip() for x in f.readlines()]
 
+    train_keys = list(set(list(trainval_data.keys())) - set(val_keys))
     # train_keys = train_keys[:32]
     # val_keys = val_keys[:16]
 
@@ -293,7 +294,7 @@ def xview_train_loader_factory(xview_root, crop_size, batch_size, num_workers):
 
     return trainloader, valloader
 
-def xview_test_loader_factory(xview_root, crop_size, batch_size, num_workers):
+def xview_test_loader_factory(xview_root, crop_size):
     # Read metadata
     _, test_data = load_xview_metadata(xview_root)
 
