@@ -27,6 +27,7 @@ from dataset import xview_train_loader_factory
 from utils import input_tensor_to_pil_img
 from utils import segmap_tensor_to_pil_img
 from utils import reconstruct_from_tiles
+from utils import postprocess_segmap_tensor_to_pil_img, logits_to_probs
 from losses import cross_entropy, localization_aware_cross_entropy
 
 # Configuration
@@ -68,7 +69,11 @@ if config["misc"]["APEX_OPT_LEVEL"] != "None":
 # print("Entering Training Loop")
 
 train_loss = AverageMeter("train_loss")
+train_loc_loss = AverageMeter("train_loc_loss")
+train_cls_loss = AverageMeter("train_cls_loss")
 val_loss = AverageMeter("val_loss")
+val_loc_loss = AverageMeter("val_loc_loss")
+val_cls_loss = AverageMeter("val_cls_loss")
 # iou_mean = AverageMeter("mIoU")
 # iou_localization = AverageMeter("localization_iou")
 train_iou = IoU(5)
@@ -76,10 +81,14 @@ val_pre_iou = IoU(5)
 val_post_iou = IoU(5)
 
 train_loss_log = MetricLog("train_loss")
+train_loc_loss_log = MetricLog("train_loc_loss")
+train_cls_loss_log = MetricLog("train_cls_loss")
 train_mIoU_log = MetricLog("train_mIoU")
 train_localization_IoU_log = MetricLog("train_localization_IoU")
 
 val_loss_log = MetricLog("val_loss")
+val_loc_loss_log = MetricLog("val_loc_loss")
+val_cls_loss_log = MetricLog("val_cls_loss")
 val_mIoU_log = MetricLog("val_mIoU")
 val_localization_IoU_log = MetricLog("val_localization_IoU")
 
@@ -88,7 +97,11 @@ for epoch in range(int(config["hyperparameters"]["NUM_EPOCHS"])):
     print("Beginning Epoch #" +str(epoch) + ":" )
     # Reset Loss & metric tracking at beginning of epoch
     train_loss.reset()
+    train_loc_loss.reset()
+    train_cls_loss.reset()
     val_loss.reset()
+    val_loc_loss.reset()
+    val_cls_loss.reset()
     train_iou.reset()
     val_pre_iou.reset()
     val_post_iou.reset()
@@ -117,9 +130,9 @@ for epoch in range(int(config["hyperparameters"]["NUM_EPOCHS"])):
             if config["hyperparameters"]["LOSS"] == "crossentropy":
                 loss = cross_entropy(segmaps, pred_segmaps)
             elif config["hyperparameters"]["LOSS"] == "locaware":
-                loss = localization_aware_cross_entropy(segmaps, pred_segmaps,
-                                                        config["hyperparameters"]["LOCALIZATION_WEIGHT"],
-                                                        config["hyperparameters"]["CLASSIFICATION_WEIGHT"])
+                loc_loss, cls_loss, loss = localization_aware_cross_entropy(segmaps, pred_segmaps,
+                                                                            config["hyperparameters"]["LOCALIZATION_WEIGHT"],
+                                                                            config["hyperparameters"]["CLASSIFICATION_WEIGHT"])
 
             if config["misc"]["APEX_OPT_LEVEL"] != "None":
                 with amp.scale_loss(loss, optimizer) as scaled_loss:
@@ -130,6 +143,8 @@ for epoch in range(int(config["hyperparameters"]["NUM_EPOCHS"])):
             optimizer.step()
 
         train_loss.update(val=loss.item(), n=1)
+        train_loc_loss.update(val=loc_loss.item(), n=1)
+        train_cls_loss.update(val=cls_loss.item(), n=1)
         segmaps_classid = segmaps.argmax(1)
         train_iou.add(pred_segmaps.detach(), segmaps_classid.detach())
         train_pbar.update(1)
@@ -140,6 +155,8 @@ for epoch in range(int(config["hyperparameters"]["NUM_EPOCHS"])):
 
     # Log train metrics
     train_loss_log.update(train_loss.value())
+    train_loc_loss_log.update(train_loc_loss.value())
+    train_cls_loss_log.update(train_cls_loss.value())
     train_mIoU_log.update(train_miou)
     train_localization_IoU_log.update(train_localization_iou)
 
@@ -166,10 +183,12 @@ for epoch in range(int(config["hyperparameters"]["NUM_EPOCHS"])):
             post_preds = postoutputs['out']
 
             # Compute metrics
-            val_loss_val = cross_entropy(prelabels[0], pre_preds)
-            val_loss_val += cross_entropy(postlabels[0], post_preds)
-            val_loss_val /= 2
+            val_pre_loc_loss, val_pre_cls_loss, val_pre_loss_val = cross_entropy(prelabels[0], pre_preds)
+            val_post_loc_loss, val_post_cls_loss, val_post_loss_val = cross_entropy(postlabels[0], post_preds)
+            val_loss_val = (val_pre_loss_val + val_post_loss_val)/2
             val_loss.update(val=val_loss_val.item(), n=1)
+            val_loc_loss.update(val=val_pre_loc_loss.item(), n=1)
+            val_cls_loss.update(val=val_post_cls_loss.item(), n=1)
 
             pre_gt_classid = prelabels[0].argmax(1)
             post_gt_classid = postlabels[0].argmax(1)
@@ -177,14 +196,14 @@ for epoch in range(int(config["hyperparameters"]["NUM_EPOCHS"])):
             val_post_iou.add(post_preds.detach(), post_gt_classid.detach())
 
         # Write to disk for visually tracking training progress
-        save_path = "val_results/" + config_name + "/"+ str(idx) + "/"
+        save_path = "val_results/" + config_name + "/" + str(idx) + "/"
         pathlib.Path(save_path).mkdir(parents=True, exist_ok=True)
         pre_pred = reconstruct_from_tiles(pre_preds, 5, config["dataloader"]["CROP_SIZE"])
         post_pred = reconstruct_from_tiles(post_preds, 5, config["dataloader"]["CROP_SIZE"])
 
-        r = segmap_tensor_to_pil_img(pre_pred)
+        r = postprocess_segmap_tensor_to_pil_img(logits_to_probs(pre_pred), binarize=True)
         r.save(save_path + "pre_pred_epoch_" + str(epoch) + ".png")
-        r = segmap_tensor_to_pil_img(post_pred)
+        r = postprocess_segmap_tensor_to_pil_img(logits_to_probs(post_pred))
         r.save(save_path + "post_pred_epoch_" + str(epoch) + ".png")
 
         # Groundtruth only needs to be saved once
@@ -213,6 +232,8 @@ for epoch in range(int(config["hyperparameters"]["NUM_EPOCHS"])):
     val_miou = post_miou
 
     val_loss_log.update(val_loss.value())
+    val_loc_loss_log.update(val_loc_loss.value())
+    val_cls_loss_log.update(val_cls_loss.value())
     val_localization_IoU_log.update(val_localization_iou)
     val_mIoU_log.update(val_miou)
 
