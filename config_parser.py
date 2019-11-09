@@ -9,6 +9,7 @@ __license__ = None
 
 import configparser
 
+
 def str2bool(v):
   return v.lower() in ("yes", "true", "t", "1")
 
@@ -48,12 +49,13 @@ type_map = {
 def read_config(config_name):
     config_file = config_name + ".ini"
     config = configparser.ConfigParser()
+    config.optionxform = lambda option: option
     config.read(config_file)
-    config = dict(config)
-    return parse_config(config, type_map)
+    return parse_config(config._sections, type_map)
 
 
 def parse_config(config, template):
+    print(config)
     for section, params in template.items():
         for param_name, param_type in params.items():
             config[section][param_name] = param_type(config[section][param_name])
@@ -63,7 +65,8 @@ def parse_config(config, template):
 
 if __name__ == '__main__':
     import os
+    import pprint
     config_name = os.environ["XVIEW_CONFIG"]
     config = read_config(config_name)
-    print(config)
+    pprint.pprint(config)
 
