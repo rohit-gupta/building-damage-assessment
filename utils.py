@@ -284,6 +284,7 @@ def load_xview_metadata(xview_root, data_version, use_tier3):
     Load data file paths
     """
     data_dir = xview_root + data_version
+    print(data_dir, data_version, use_tier3)
     train_label_files = glob.glob(data_dir + "train/labels/*")
     train_image_files = glob.glob(data_dir + "train/images/*")
     if use_tier3:

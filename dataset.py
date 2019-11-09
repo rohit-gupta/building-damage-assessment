@@ -252,7 +252,7 @@ def test_collate_fn(batch):
 
 
 def xview_train_loader_factory(xview_root, data_version, use_tier3, crop_size, batch_size, num_workers):
-    # print(xview_root)
+    print(xview_root, data_version, use_tier3)
     # Read metadata
     trainval_data, test_data = load_xview_metadata(xview_root, data_version, use_tier3)
 
