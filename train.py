@@ -184,10 +184,6 @@ for epoch in range(int(config["hyperparameters"]["NUM_EPOCHS"])):
             postoutputs = semseg_model(posttiles[0])
             post_preds = postoutputs['out']
 
-            print(pretiles[0].shape, posttiles[0].shape,
-                  prelabels.shape, postlabels.shape,
-                  pre_preds.shape, post_preds.shape)
-
             # Compute metrics (for now we always log locaware val loss)
             val_pre_loc_loss,\
             val_pre_cls_loss,\
