@@ -284,7 +284,7 @@ def load_xview_metadata(xview_root, data_version, use_tier3):
     Load data file paths
     """
     data_dir = xview_root + data_version
-    print(data_dir, data_version, use_tier3)
+    print(data_dir)
     train_label_files = glob.glob(data_dir + "train/labels/*")
     train_image_files = glob.glob(data_dir + "train/images/*")
     if use_tier3:
@@ -298,6 +298,7 @@ def load_xview_metadata(xview_root, data_version, use_tier3):
         disaster, image_num, pre_or_post, _ = file_name.split("_")
         disaster = disaster.replace(data_dir + "train/labels/", "")
         input_id = disaster + "_" + image_num
+        print(input_id)
         if input_id not in train_data.keys():
             train_data[input_id] = {}
         train_data[input_id][pre_or_post + "_label_file"] = file_name
@@ -306,6 +307,7 @@ def load_xview_metadata(xview_root, data_version, use_tier3):
         disaster, image_num, pre_or_post, _ = file_name.split("_")
         disaster = disaster.replace(data_dir + "train/images/", "")
         input_id = disaster + "_" + image_num
+        print(input_id)
         if input_id not in train_data.keys():
             train_data[input_id] = {}
         train_data[input_id][pre_or_post + "_image_file"] = file_name
