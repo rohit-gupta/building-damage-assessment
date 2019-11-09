@@ -108,61 +108,61 @@ for epoch in range(int(config["hyperparameters"]["NUM_EPOCHS"])):
     val_pre_iou.reset()
     val_post_iou.reset()
 
-    # # Put model in training mode
-    # semseg_model.train()
-    #
-    # train_pbar = tqdm.tqdm(total=len(trainloader))
-    # for images, segmaps in trainloader:
-    #     # Send tensors to GPU
-    #     images = images.to(device)
-    #     segmaps = segmaps.to(device)
-    #
-    #     # zero the parameter gradients
-    #     optimizer.zero_grad()
-    #
-    #     with torch.set_grad_enabled(True):
-    #         outputs = semseg_model(images)
-    #         pred_segmaps = outputs['out']
-    #         # print("First forward pass done")
-    #         # TODO Hacky Categorical CE alternative using Binary CE
-    #         # pred_probas = nn.Softmax(dim=1)(pred_segmaps)
-    #         # loss = nn.BCELoss()(pred_probas, segmaps)
-    #
-    #         # Cross Entropy Loss
-    #         if config["hyperparameters"]["LOSS"] == "crossentropy":
-    #             loss = cross_entropy(segmaps, pred_segmaps)
-    #         elif config["hyperparameters"]["LOSS"] == "locaware":
-    #             loc_loss, cls_loss, loss = localization_aware_cross_entropy(segmaps, pred_segmaps,
-    #                                                                         config["hyperparameters"]["LOCALIZATION_WEIGHT"],
-    #                                                                         config["hyperparameters"]["CLASSIFICATION_WEIGHT"])
-    #
-    #         if config["misc"]["APEX_OPT_LEVEL"] != "None":
-    #             with amp.scale_loss(loss, optimizer) as scaled_loss:
-    #                 scaled_loss.backward()
-    #         else:
-    #             loss.backward()
-    #
-    #         optimizer.step()
-    #
-    #     train_loss.update(val=loss.item(), n=1)
-    #     train_loc_loss.update(val=loc_loss.item(), n=1)
-    #     train_cls_loss.update(val=cls_loss.item(), n=1)
-    #     segmaps_classid = segmaps.argmax(1)
-    #     train_iou.add(pred_segmaps.detach(), segmaps_classid.detach())
-    #     train_pbar.update(1)
-    #
-    # # End of an epoch
-    # (train_iou_list, train_miou) = train_iou.value()
-    # train_localization_iou = train_iou_list[0]
-    #
-    # # Log train metrics
-    # train_loss_log.update(train_loss.value())
-    # train_loc_loss_log.update(train_loc_loss.value())
-    # train_cls_loss_log.update(train_cls_loss.value())
-    # train_mIoU_log.update(train_miou)
-    # train_localization_IoU_log.update(train_localization_iou)
-    #
-    # train_pbar.close()
+    # Put model in training mode
+    semseg_model.train()
+
+    train_pbar = tqdm.tqdm(total=len(trainloader))
+    for images, segmaps in trainloader:
+        # Send tensors to GPU
+        images = images.to(device)
+        segmaps = segmaps.to(device)
+
+        # zero the parameter gradients
+        optimizer.zero_grad()
+
+        with torch.set_grad_enabled(True):
+            outputs = semseg_model(images)
+            pred_segmaps = outputs['out']
+            # print("First forward pass done")
+            # TODO Hacky Categorical CE alternative using Binary CE
+            # pred_probas = nn.Softmax(dim=1)(pred_segmaps)
+            # loss = nn.BCELoss()(pred_probas, segmaps)
+
+            # Cross Entropy Loss
+            if config["hyperparameters"]["LOSS"] == "crossentropy":
+                loss = cross_entropy(segmaps, pred_segmaps)
+            elif config["hyperparameters"]["LOSS"] == "locaware":
+                loc_loss, cls_loss, loss = localization_aware_cross_entropy(segmaps, pred_segmaps,
+                                                                            config["hyperparameters"]["LOCALIZATION_WEIGHT"],
+                                                                            config["hyperparameters"]["CLASSIFICATION_WEIGHT"])
+
+            if config["misc"]["APEX_OPT_LEVEL"] != "None":
+                with amp.scale_loss(loss, optimizer) as scaled_loss:
+                    scaled_loss.backward()
+            else:
+                loss.backward()
+
+            optimizer.step()
+
+        train_loss.update(val=loss.item(), n=1)
+        train_loc_loss.update(val=loc_loss.item(), n=1)
+        train_cls_loss.update(val=cls_loss.item(), n=1)
+        segmaps_classid = segmaps.argmax(1)
+        train_iou.add(pred_segmaps.detach(), segmaps_classid.detach())
+        train_pbar.update(1)
+
+    # End of an epoch
+    (train_iou_list, train_miou) = train_iou.value()
+    train_localization_iou = train_iou_list[0]
+
+    # Log train metrics
+    train_loss_log.update(train_loss.value())
+    train_loc_loss_log.update(train_loc_loss.value())
+    train_cls_loss_log.update(train_cls_loss.value())
+    train_mIoU_log.update(train_miou)
+    train_localization_IoU_log.update(train_localization_iou)
+
+    train_pbar.close()
 
     # Validation Phase of epoch
     # Assume batch_size = 1 (higher sizes are impractical)
