@@ -184,7 +184,7 @@ for epoch in range(int(config["hyperparameters"]["NUM_EPOCHS"])):
             postoutputs = semseg_model(posttiles[0])
             post_preds = postoutputs['out']
 
-            print(pretiles.shape, posttiles.shape,
+            print(pretiles[0].shape, posttiles[0].shape,
                   prelabels.shape, postlabels.shape,
                   pre_preds.shape, post_preds.shape)
 
