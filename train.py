@@ -188,9 +188,17 @@ for epoch in range(int(config["hyperparameters"]["NUM_EPOCHS"])):
                   prelabels.shape, postlabels.shape,
                   pre_preds.shape, post_preds.shape)
 
-            # Compute metrics
-            val_pre_loc_loss, val_pre_cls_loss, val_pre_loss_val = cross_entropy(prelabels[0], pre_preds)
-            val_post_loc_loss, val_post_cls_loss, val_post_loss_val = cross_entropy(postlabels[0], post_preds)
+            # Compute metrics (for now we always log locaware val loss)
+            val_pre_loc_loss,\
+            val_pre_cls_loss,\
+            val_pre_loss_val = localization_aware_cross_entropy(prelabels[0], pre_preds,
+                                                                config["hyperparameters"]["LOCALIZATION_WEIGHT"],
+                                                                config["hyperparameters"]["CLASSIFICATION_WEIGHT"])
+            val_post_loc_loss,\
+            val_post_cls_loss,\
+            val_post_loss_val = localization_aware_cross_entropy(postlabels[0], post_preds,
+                                                                 config["hyperparameters"]["LOCALIZATION_WEIGHT"],
+                                                                 config["hyperparameters"]["CLASSIFICATION_WEIGHT"])
             val_loss_val = (val_pre_loss_val + val_post_loss_val)/2
             val_loss.update(val=val_loss_val.item(), n=1)
             val_loc_loss.update(val=val_pre_loc_loss.item(), n=1)
