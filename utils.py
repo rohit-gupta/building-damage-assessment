@@ -84,14 +84,10 @@ def segmap_tensor_to_pil_img(segmap_tensor):
 
 
 def logits_to_probs(segmap_logits):
-    print(segmap_logits.shape)
     bg_logits, class_logits = torch.split(segmap_logits, [1, 4], dim=0)
-    print(bg_logits.shape, class_logits.shape)
     bg_probs = torch.nn.functional.sigmoid(bg_logits)
-    print(bg_probs.shape)
     class_probs = torch.nn.functional.softmax(class_logits, dim=0)
-    print(class_probs.shape)
-    return torch.stack([bg_probs, class_probs], dim=0)
+    return torch.cat([bg_probs, class_probs], dim=0)
 
 
 def postprocess_segmap_tensor_to_pil_img(segmap_tensor, apply_color=True, binarize=False):
