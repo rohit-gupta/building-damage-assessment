@@ -296,7 +296,8 @@ def load_xview_metadata(xview_root, data_version, use_tier3):
     train_data = {}
     for file_name in train_label_files:
         disaster, image_num, pre_or_post, _ = file_name.split("_")
-        disaster = disaster.replace(data_dir + "train/labels/", "")
+        # disaster = disaster.replace(data_dir + "train/labels/", "")
+        disaster = disaster.split("/")[-1]
         input_id = disaster + "_" + image_num
         print(input_id)
         if input_id not in train_data.keys():
@@ -305,7 +306,8 @@ def load_xview_metadata(xview_root, data_version, use_tier3):
 
     for file_name in train_image_files:
         disaster, image_num, pre_or_post, _ = file_name.split("_")
-        disaster = disaster.replace(data_dir + "train/images/", "")
+        # disaster = disaster.replace(data_dir + "train/images/", "")
+        disaster = disaster.split("/")[-1]
         input_id = disaster + "_" + image_num
         print(input_id)
         if input_id not in train_data.keys():
