@@ -59,3 +59,11 @@ def parse_config(config, template):
             config[section][param_name] = param_type(config[section][param_name])
 
     return config
+
+
+if __name__ == '__main__':
+    import os
+    config_name = os.environ["XVIEW_CONFIG"]
+    config = read_config(config_name)
+    print(config)
+
