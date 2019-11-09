@@ -72,6 +72,7 @@ class xviewDataset(Dataset):
     def __getitem__(self, index):
 
         x = self.data[self.index[index]]
+        print(x.keys())
         pre_image = self.__readimg(x["pre_image_file"])
         post_image = self.__readimg(x["post_image_file"])
 
