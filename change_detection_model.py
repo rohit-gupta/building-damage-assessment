@@ -9,12 +9,12 @@ class ConvLayer(nn.Module):
         super(ConvLayer, self).__init__()
         self.padding_type = padding_type
         if padding_type == "replication":
-            self.pad = nn.ReplicationPad2d((kernel_size * dilation - dilation + 1) // 2) # SAME padding
+            self.pad = nn.ReplicationPad2d((kernel_size * dilation - dilation + 1) // 2)  # SAME padding
         elif padding_type == "reflection":
-            self.pad = nn.ReflectionPad2d((kernel_size * dilation - dilation + 1) // 2)  # SAME padding
-        self.conv = nn.Conv2d(in_channels, out_channels,
-                              kernel_size,
-                              dilation=dilation,
+            self.pad = nn.ReflectionPad2d((kernel_size * dilation - dilation + 1) // 2)   # SAME padding
+        self.conv = nn.Conv2d(int(in_channels), int(out_channels),
+                              int(kernel_size),
+                              dilation=int(dilation),
                               bias=False)
         if use_bn:
             self.bn = nn.BatchNorm2d(out_channels, eps=0.001)
