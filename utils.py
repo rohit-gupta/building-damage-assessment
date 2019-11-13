@@ -143,15 +143,24 @@ def get_object_label(object_properties):
     return objclass, objstate
 
 
-def labels_to_segmentation_map(labels_data):
+def labels_to_segmentation_map(labels_data, scale=None):
     """
     Parse a label file into a segmentation matrix (pytorch format)
     """
-    segmap = np.zeros((5, H, W), dtype=np.uint8)
+    if scale:
+        scaled_H = int(H * scale)
+        scaled_W = int(W * scale)
+    else:
+        scaled_H = H
+        scaled_W = W
+    segmap = np.zeros((5, scaled_H, scaled_W), dtype=np.uint8)
     for annotated_object in labels_data:
         shp = shapely.wkt.loads(annotated_object['wkt'])
         pts = list(shp.exterior.coords)
-        pts = [(int(round(x[0])), int(round(x[1]))) for x in pts]
+        if scale:
+            pts = [(int(round(scale*x[0])), int(round(scale*x[1]))) for x in pts]
+        else:
+            pts = [(int(round(x[0])), int(round(x[1]))) for x in pts]
 
         # Draw Polygon
         poly = np.array(pts)

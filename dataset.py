@@ -28,6 +28,10 @@ pil_to_tensor = transforms.Compose([transforms.ToTensor(),
                                     transforms.Normalize(MEANS, STDDEVS)
                                     ])
 
+pixel_space_augmentations = transforms.Compose(
+    [transforms.RandomApply([transforms.ColorJitter(brightness=0.1, contrast=0.1, saturation=0.1, hue=0.02)], p=0.2)]
+)
+
 
 def get_rand_crops(actual_size, crop_size):
     x0 = random.randint(0, actual_size - crop_size)
@@ -46,18 +50,22 @@ class xviewDataset(Dataset):
     '''
     mode: should support train (aug + labels), val (noaug + labels), test(noaug + nolabels)
     flips: h, v, combo
+    color jitter: brightness, contrast, hue, saturation
     noise: salt, gaussian, other
     erase: random erasing to mean
     distort: small elastic distortion
     '''
-    def __init__(self, data, mode='train', actual_size=1024, crop_size=384,
-                 flips=True, erase=False, noise=False, distort=False,
+    def __init__(self, data, mode='train', actual_size=1024, crop_size=256,
+                 flips=True, scale_jitter=True, color_jitter=True,
+                 erase=False, noise=False, distort=False,
                  spatial_label_smoothing=1):
         self.data = data
         self.mode = mode
         self.actual_size = actual_size
         self.crop_size = crop_size
         self.flips = flips
+        self.color_jitter = color_jitter
+        self.scale_jitter = scale_jitter
         self.erase = erase
         self.noise = noise
         self.distort = distort
@@ -72,12 +80,17 @@ class xviewDataset(Dataset):
     def __getitem__(self, index):
 
         x = self.data[self.index[index]]
-        pre_image = self.__readimg(x["pre_image_file"])
-        post_image = self.__readimg(x["post_image_file"])
+
+        if self.scale_jitter and self.mode == "train":
+            chosen_scale = random.choice([0.5, None, 2.0])
+        else:
+            chosen_scale = None
+        pre_image = self.__readimg(x["pre_image_file"], chosen_scale)
+        post_image = self.__readimg(x["post_image_file"], chosen_scale)
 
         if self.mode == "train" or self.mode == "val":
-            pre_segmap = self.__readlabels(x["pre_label_file"])
-            post_segmap = self.__readlabels(x["post_label_file"])
+            pre_segmap = self.__readlabels(x["pre_label_file"], chosen_scale)
+            post_segmap = self.__readlabels(x["post_label_file"], chosen_scale)
 
             # Label smoothing with 1x1 Kernel = no smoothing
             # if self.ls_size > 1:
@@ -110,16 +123,20 @@ class xviewDataset(Dataset):
                                                post_image, None)
             return (preimgs, postimgs)
 
-    def __readlabels(self, label_file):
+    def __readlabels(self, label_file, scale):
 
         labels_data = read_labels_file(label_file)
-        segmap = labels_to_segmentation_map(labels_data)
+        segmap = labels_to_segmentation_map(labels_data, scale)
 
         return segmap
 
-    def __readimg(self, image_file):
+    def __readimg(self, image_file, scale):
 
         img = Image.open(image_file)
+        if scale:
+            img = transforms.Resize(int(self.actual_size * scale))(img)
+        if self.color_jitter:
+            img = pixel_space_augmentations(img)
         img_tensor = pil_to_tensor(img)
 
         return img_tensor
@@ -162,7 +179,8 @@ class xviewDataset(Dataset):
             elif self.mode == "test":
                 return (pre_img_crops, post_img_crops)
 
-        x0, y0, x1, y1 = get_rand_crops(self.actual_size, self.crop_size)
+        # Assuming everything is square
+        x0, y0, x1, y1 = get_rand_crops(pre_img.shape[0], self.crop_size)
 
         if self.mode == "train":
             # Tensors are NCHW, x is column number in numpy notation
@@ -277,7 +295,7 @@ def xview_train_loader_factory(xview_root, data_version, use_tier3, crop_size, b
 
     trainset = xviewDataset(train_data, mode="train",
                             actual_size=1024, crop_size=crop_size,
-                            flips=True,
+                            flips=True, scale_jitter=True, color_jitter=True,
                             erase=False, noise=False, distort=False)
 
     valset = xviewDataset(val_data, mode="val",
