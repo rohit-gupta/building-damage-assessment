@@ -95,9 +95,6 @@ class ChangeDetectionNet(nn.Module):
         if feature_channels is None:
             feature_channels = len(kernel_scales) * classes
 
-        if num_layers > 1:
-            raise NotImplementedError("Currently only supporting 1 layer CDNet")
-
         self.first_layer = MultiScaleContextLayer(in_channels=2*classes,
                                                   feature_channels=feature_channels,
                                                   out_channels=classes,
