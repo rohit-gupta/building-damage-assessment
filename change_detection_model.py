@@ -21,6 +21,12 @@ class ConvLayer(nn.Module):
         else:
             self.bn = None
 
+        nn.init.kaiming_(self.conv.weight)
+        nn.init.ones_(self.bn.weight)
+        nn.init.zeros_(self.bn.bias)
+        # nn.init.zeros_(self.conv.weight) # Not using bias for now
+
+
     def forward(self, x):
         if self.padding_type: # 1x1 Convs don't need padding
             x = self.pad(x)
