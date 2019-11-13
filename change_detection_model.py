@@ -108,14 +108,16 @@ class ChangeDetectionNet(nn.Module):
                                                   dilation_scales=dilation_scales,
                                                   use_bn=use_bn, padding_type=padding_type)
 
-        self.higher_layers = []
+        higher_layers = []
         for layer_num in range(num_layers-1):
-            self.higher_layers.append(MultiScaleContextLayer(in_channels=3*classes, # Segmentation Outputs + Previous layer Detected Change
-                                                             feature_channels=feature_channels,
-                                                             out_channels=classes,
-                                                             kernel_scales=kernel_scales,
-                                                             dilation_scales=dilation_scales,
-                                                             use_bn=use_bn, padding_type=padding_type))
+            higher_layers.append(MultiScaleContextLayer(in_channels=3*classes, # Segmentation Outputs + Previous layer Detected Change
+                                                        feature_channels=feature_channels,
+                                                        out_channels=classes,
+                                                        kernel_scales=kernel_scales,
+                                                        dilation_scales=dilation_scales,
+                                                        use_bn=use_bn, padding_type=padding_type))
+
+        self.higher_layers = nn.ModuleList(higher_layers)
 
     def forward(self, x):
         first_pred = self.first_layer(x)
