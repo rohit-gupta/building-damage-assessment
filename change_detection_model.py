@@ -21,7 +21,7 @@ class ConvLayer(nn.Module):
         else:
             self.bn = None
 
-        nn.init.kaiming_(self.conv.weight)
+        nn.init.kaiming_uniform_(self.conv.weight)
         nn.init.ones_(self.bn.weight)
         nn.init.zeros_(self.bn.bias)
         # nn.init.zeros_(self.conv.weight) # Not using bias for now
