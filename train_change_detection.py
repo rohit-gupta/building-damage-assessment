@@ -8,4 +8,5 @@ changenet = ChangeDetectionNet(classes=5, num_layers=2, feature_channels=15,
                                use_bn=True, padding_type="replication")
 changenet = changenet.cuda()
 x = torch.rand(8,10,1024,1024)
-y = changenet(x.cuda())
+x = x.cuda()
+y = changenet(x)
