@@ -16,14 +16,14 @@ class ConvLayer(nn.Module):
                               int(kernel_size),
                               dilation=int(dilation),
                               bias=False)
+        nn.init.kaiming_uniform_(self.conv.weight)
         if use_bn:
             self.bn = nn.BatchNorm2d(int(out_channels), eps=0.001)
+            nn.init.ones_(self.bn.weight)
+            nn.init.zeros_(self.bn.bias)
         else:
             self.bn = None
 
-        nn.init.kaiming_uniform_(self.conv.weight)
-        nn.init.ones_(self.bn.weight)
-        nn.init.zeros_(self.bn.bias)
         # nn.init.zeros_(self.conv.weight) # Not using bias for now
 
 
