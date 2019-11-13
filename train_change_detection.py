@@ -5,7 +5,7 @@ from change_detection_model import ChangeDetectionNet
 
 
 changenet = ChangeDetectionNet(classes=5, num_layers=3, feature_channels=15,
-                               kernel_scales=[3, 13, 23], dilation_scales=[2, 4, 8],
+                               kernel_scales=[3, 11, 19], dilation_scales=[2, 4, 8],
                                use_bn=True, padding_type="replication")
 
 
