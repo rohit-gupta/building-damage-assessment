@@ -17,7 +17,7 @@ class ConvLayer(nn.Module):
                               dilation=int(dilation),
                               bias=False)
         if use_bn:
-            self.bn = nn.BatchNorm2d(out_channels, eps=0.001)
+            self.bn = nn.BatchNorm2d(int(out_channels), eps=0.001)
         else:
             self.bn = None
 
