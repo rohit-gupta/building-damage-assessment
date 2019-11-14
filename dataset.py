@@ -33,6 +33,9 @@ pixel_space_augmentations = transforms.Compose(
 
 
 def get_rand_crops(actual_size, crop_size):
+    # print(actual_size, crop_size)
+    if actual_size == crop_size:
+        return 0, 0, actual_size, actual_size
     x0 = random.randint(0, actual_size - crop_size)
     y0 = random.randint(0, actual_size - crop_size)
     x1, y1 = x0 + crop_size, y0 + crop_size
@@ -146,7 +149,7 @@ class xviewDataset(Dataset):
     def __augment(self, pre_img, pre_segmap, post_img, post_segmap):
 
         # Assuming everything is square
-        x0, y0, x1, y1 = get_rand_crops(pre_img.shape[0], self.crop_size)
+        x0, y0, x1, y1 = get_rand_crops(pre_img.shape[-1], self.crop_size)
         # Tensors are NCHW, x is column number in numpy notation
         cropped_pre_img = pre_img[:, x0:x1, y0:y1]
         cropped_post_img = post_img[:, x0:x1, y0:y1]
@@ -155,6 +158,8 @@ class xviewDataset(Dataset):
             cropped_pre_segmap = pre_segmap[:, x0:x1, y0:y1]
             cropped_post_segmap = post_segmap[:, x0:x1, y0:y1]
 
+        # print(x0, y0, x1, y1)
+        # print(cropped_pre_img.shape, cropped_post_img.shape, cropped_pre_segmap.shape, cropped_post_segmap.shape)
         # There are 6 possible flips: None, rot90, rot180, rot270, hflip & vflip
         flip = get_rand_flips()
         if flip is None or self.flips is False:
@@ -163,22 +168,20 @@ class xviewDataset(Dataset):
             flipped_pre_segmap = cropped_pre_segmap
             flipped_post_segmap = cropped_post_segmap
         else:
+            # print(flip)
             if "rot" in flip:
                 angle = int(int(flip.replace("rot", "")) // 90)
-                print(flip)
                 flipped_pre_img = torch.rot90(cropped_pre_img, angle, [1, 2])
                 flipped_post_img = torch.rot90(cropped_post_img, angle, [1, 2])
                 flipped_pre_segmap = torch.rot90(cropped_pre_segmap, angle, [1, 2])
                 flipped_post_segmap = torch.rot90(cropped_post_segmap, angle, [1, 2])
             elif "flip" in flip:
                 if flip == "hflip":
-                    print("hflip")
                     flipped_pre_img = torch.flip(cropped_pre_img, [2])
                     flipped_post_img = torch.flip(cropped_post_img, [2])
                     flipped_pre_segmap = torch.flip(cropped_pre_segmap, [2])
                     flipped_post_segmap = torch.flip(cropped_post_segmap, [2])
                 elif flip == "vflip":
-                    print("vflip")
                     flipped_pre_img = torch.flip(cropped_pre_img, [1])
                     flipped_post_img = torch.flip(cropped_post_img, [1])
                     flipped_pre_segmap = torch.flip(cropped_pre_segmap, [1])
