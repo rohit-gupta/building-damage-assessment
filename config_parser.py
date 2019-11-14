@@ -30,6 +30,7 @@ type_map = {
         "DATA_VERSION": str,
         "USE_TIER3_TRAIN": str2bool,
         "CROP_SIZE": int,
+        "TILES_SIZE": int,
         "THREADS": int,
         "BATCH_SIZE": int
     },

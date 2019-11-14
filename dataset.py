@@ -7,7 +7,6 @@ __author__ = "Rohit Gupta"
 __version__ = "dev"
 __license__ = None
 
-
 import random
 from PIL import Image
 import numpy as np
@@ -55,14 +54,17 @@ class xviewDataset(Dataset):
     erase: random erasing to mean
     distort: small elastic distortion
     '''
-    def __init__(self, data, mode='train', actual_size=1024, crop_size=256,
-                 flips=True, scale_jitter=True, color_jitter=True,
+
+    def __init__(self, data, mode='tiles', load_segmaps=False, actual_size=1024, crop_size=256, tile_size=256,
+                 flips=False, scale_jitter=False, color_jitter=False,
                  erase=False, noise=False, distort=False,
                  spatial_label_smoothing=1):
         self.data = data
         self.mode = mode
+        self.load_segmaps = load_segmaps
         self.actual_size = actual_size
         self.crop_size = crop_size
+        self.tile_size = tile_size
         self.flips = flips
         self.color_jitter = color_jitter
         self.scale_jitter = scale_jitter
@@ -81,14 +83,14 @@ class xviewDataset(Dataset):
 
         x = self.data[self.index[index]]
 
-        if self.scale_jitter and self.mode == "train":
-            chosen_scale = random.choice([0.5, None, 2.0])
+        if self.scale_jitter:
+            chosen_scale = random.choice([0.5, None, None, None, None, None, None, 2.0]) # Use 1x images 75% of the time
         else:
             chosen_scale = None
         pre_image = self.__readimg(x["pre_image_file"], chosen_scale)
         post_image = self.__readimg(x["post_image_file"], chosen_scale)
 
-        if self.mode == "train" or self.mode == "val":
+        if self.load_segmaps:
             pre_segmap = self.__readlabels(x["pre_label_file"], chosen_scale)
             post_segmap = self.__readlabels(x["post_label_file"], chosen_scale)
 
@@ -103,22 +105,22 @@ class xviewDataset(Dataset):
             pre_segmap = torch.from_numpy(pre_segmap).to(torch.float32)
             post_segmap = torch.from_numpy(post_segmap).to(torch.float32)
 
-        if self.mode == "train":
+        if self.mode == "batch" and self.load_segmaps:  # train-seg mode
             img1, segmap1, img2, segmap2 = self.__augment(pre_image,
                                                           pre_segmap,
                                                           post_image,
                                                           post_segmap)
             return ([img1, img2], [segmap1, segmap2])
 
-        elif self.mode == "val":
-            preims, presegs, postims, postsegs = self.__augment(pre_image,
+        elif self.mode == "tiles" and self.load_segmaps:  # val or train-change mode
+            preimgs, presegs, postimgs, postsegs = self.__augment(pre_image,
                                                                 pre_segmap,
                                                                 post_image,
                                                                 post_segmap)
 
-            return (preims, postims, presegs, postsegs)
+            return (preimgs, postimgs, presegs, postsegs)
 
-        elif self.mode == "test":
+        elif self.mode == "tiles" and not self.load_segmaps:  # test mode
             preimgs, postimgs = self.__augment(pre_image, None,
                                                post_image, None)
             return (preimgs, postimgs)
@@ -143,90 +145,88 @@ class xviewDataset(Dataset):
 
     def __augment(self, pre_img, pre_segmap, post_img, post_segmap):
 
-        # No Test Time Augmentation (for now)
-        # In Val and Test, we need all tiles of the image
-        # During Training, we need 1 random crop that's further flipped/rotated
-        if self.mode == "val" or self.mode == "test":
-            assert self.actual_size % self.crop_size == 0, "bad tile size"
-
-            num_tiles = self.actual_size // self.crop_size
-
-            pre_img_crops = []
-            post_img_crops = []
-
-            if self.mode == "val":
-                pre_seg_crops = []
-                post_seg_crops = []
-
-            for x in range(num_tiles):
-                for y in range(num_tiles):
-
-                    x0 = x * self.crop_size
-                    x1 = (x + 1) * self.crop_size
-                    y0 = y * self.crop_size
-                    y1 = (y + 1) * self.crop_size
-
-                    pre_img_crops.append(pre_img[:, x0: x1, y0: y1])
-                    post_img_crops.append(post_img[:, x0: x1, y0: y1])
-
-                    if self.mode == "val":
-                        pre_seg_crops.append(pre_segmap[:, x0: x1, y0: y1])
-                        post_seg_crops.append(post_segmap[:, x0: x1, y0: y1])
-
-            if self.mode == "val":
-                return (pre_img_crops, pre_seg_crops,
-                        post_img_crops, post_seg_crops)
-            elif self.mode == "test":
-                return (pre_img_crops, post_img_crops)
-
         # Assuming everything is square
         x0, y0, x1, y1 = get_rand_crops(pre_img.shape[0], self.crop_size)
+        # Tensors are NCHW, x is column number in numpy notation
+        cropped_pre_img = pre_img[:, x0:x1, y0:y1]
+        cropped_post_img = post_img[:, x0:x1, y0:y1]
 
-        if self.mode == "train":
-            # Tensors are NCHW, x is column number in numpy notation
-            cropped_pre_img = pre_img[:, x0:x1, y0:y1]
-            cropped_post_img = post_img[:, x0:x1, y0:y1]
+        if self.load_segmaps:
             cropped_pre_segmap = pre_segmap[:, x0:x1, y0:y1]
             cropped_post_segmap = post_segmap[:, x0:x1, y0:y1]
 
-        if self.flips is False:
-            return (cropped_pre_img, cropped_pre_segmap,
-                    cropped_post_img, cropped_post_segmap)
-
-        if self.mode == "train" and self.flips is not False:
-            # There are 6 possible flips: None, rot90, rot180, rot270, hflip & vflip
-            flip = get_rand_flips()
-            if flip is None:
-                flipped_pre_img = cropped_pre_img
-                flipped_post_img = cropped_post_img
-                flipped_pre_segmap = cropped_pre_segmap
-                flipped_post_segmap = cropped_post_segmap
-            elif "rot" in flip:
+        # There are 6 possible flips: None, rot90, rot180, rot270, hflip & vflip
+        flip = get_rand_flips()
+        if flip is None or self.flips is False:
+            flipped_pre_img = cropped_pre_img
+            flipped_post_img = cropped_post_img
+            flipped_pre_segmap = cropped_pre_segmap
+            flipped_post_segmap = cropped_post_segmap
+        else:
+            if "rot" in flip:
                 angle = int(int(flip.replace("rot", "")) // 90)
+                print(flip)
                 flipped_pre_img = torch.rot90(cropped_pre_img, angle, [1, 2])
                 flipped_post_img = torch.rot90(cropped_post_img, angle, [1, 2])
                 flipped_pre_segmap = torch.rot90(cropped_pre_segmap, angle, [1, 2])
                 flipped_post_segmap = torch.rot90(cropped_post_segmap, angle, [1, 2])
             elif "flip" in flip:
                 if flip == "hflip":
+                    print("hflip")
                     flipped_pre_img = torch.flip(cropped_pre_img, [2])
                     flipped_post_img = torch.flip(cropped_post_img, [2])
                     flipped_pre_segmap = torch.flip(cropped_pre_segmap, [2])
                     flipped_post_segmap = torch.flip(cropped_post_segmap, [2])
                 elif flip == "vflip":
+                    print("vflip")
                     flipped_pre_img = torch.flip(cropped_pre_img, [1])
                     flipped_post_img = torch.flip(cropped_post_img, [1])
                     flipped_pre_segmap = torch.flip(cropped_pre_segmap, [1])
                     flipped_post_segmap = torch.flip(cropped_post_segmap, [1])
 
+        if self.mode == "batch":
             return (flipped_pre_img, flipped_pre_segmap,
                     flipped_post_img, flipped_post_segmap)
+
+        # We need all tiles of the image
+        if self.mode == "tiles":
+            assert self.crop_size % self.tile_size == 0, "bad tile size"
+
+            num_tiles = self.crop_size // self.tile_size
+
+            pre_img_crops = []
+            post_img_crops = []
+
+            if self.load_segmaps:
+                pre_seg_crops = []
+                post_seg_crops = []
+
+            for x in range(num_tiles):
+                for y in range(num_tiles):
+
+                    x0 = x * self.tile_size
+                    x1 = (x + 1) * self.tile_size
+                    y0 = y * self.tile_size
+                    y1 = (y + 1) * self.tile_size
+
+                    pre_img_crops.append(flipped_pre_img[:, x0: x1, y0: y1])
+                    post_img_crops.append(flipped_post_img[:, x0: x1, y0: y1])
+
+                    if self.load_segmaps:
+                        pre_seg_crops.append(flipped_pre_segmap[:, x0: x1, y0: y1])
+                        post_seg_crops.append(flipped_post_segmap[:, x0: x1, y0: y1])
+
+            if self.load_segmaps:
+                return (pre_img_crops, pre_seg_crops,
+                        post_img_crops, post_seg_crops)
+            else:
+                return (pre_img_crops, post_img_crops)
 
     def __len__(self):
         return len(self.index)
 
 
-def train_collate_fn(batch):
+def batch_collate_fn(batch):
     images = [x[0] for x in batch]
     labels = [x[1] for x in batch]
 
@@ -242,7 +242,7 @@ def train_collate_fn(batch):
     return (images_batch_tensor, labels_batch_tensor)
 
 
-def val_collate_fn(batch):
+def tiles_collate_fn(batch):
     pretiles = [x[0] for x in batch]
     posttiles = [x[1] for x in batch]
     prelabels = [x[2] for x in batch]
@@ -268,57 +268,56 @@ def test_collate_fn(batch):
     return (pretiles_instance_tensors, posttiles_instance_tensors)
 
 
-def xview_train_loader_factory(xview_root, data_version, use_tier3, crop_size, batch_size, num_workers):
+def xview_train_loader_factory(mode, xview_root, data_version, use_tier3, crop_size, tile_size, batch_size, num_workers):
     # Read metadata
-    trainval_data, test_data = load_xview_metadata(xview_root, data_version, use_tier3)
+    train_data, val_data, _ = load_xview_metadata(xview_root, data_version, use_tier3)
 
-    # print("TrainVal images:", len(trainval_data))
+    # print("Train images:", len(train_data))
+    # print("Validation images:", len(val_data))
     # print("Test images:", len(test_data))
 
-    # with open(xview_root + data_version + "train-split.txt", "r") as f:
-    #     train_keys = [x.strip() for x in f.readlines()]
-    with open(xview_root + data_version + "val-split.txt", "r") as f:
-        val_keys = [x.strip() for x in f.readlines()]
+    if mode == "segmentation":
+        train_mode = "batch"
+        train_tile_size = -1
+        train_crop_size = crop_size
+        train_collate_fn = batch_collate_fn
+        val_tile_size = tile_size
+        val_crop_size = 1024
+        val_batch_size = 1
+    elif mode == "change":
+        train_mode = "tiles"
+        train_tile_size = tile_size
+        train_crop_size = crop_size
+        train_collate_fn = tiles_collate_fn
+        val_tile_size = tile_size
+        val_crop_size = 1024
+        val_batch_size = batch_size
 
-    train_keys = list(set(list(trainval_data.keys())) - set(val_keys))
-    # train_keys = train_keys[:32]
-    # val_keys = val_keys[:16]
+    train_set = xviewDataset(train_data, mode=train_mode, load_segmaps=True,
+                             actual_size=1024, crop_size=train_crop_size, tile_size=train_tile_size,
+                             flips=True, scale_jitter=True, color_jitter=True,
+                             erase=False, noise=False, distort=False)
 
-    val_keys = sorted(val_keys)
-    train_keys = sorted(train_keys)
+    val_set = xviewDataset(val_data, mode="tiles", load_segmaps=True,
+                           actual_size=1024, crop_size=val_crop_size, tile_size=val_tile_size)
 
-    train_data = {key:val for key, val in trainval_data.items() if key in train_keys}
-    val_data = {key: val for key, val in trainval_data.items() if key in val_keys}
+    train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True,
+                              collate_fn=train_collate_fn, num_workers=num_workers,
+                              pin_memory=True)
 
-    # print("Validation images:", len(val_data))
-    # print("Train images:", len(train_data))
-
-    trainset = xviewDataset(train_data, mode="train",
-                            actual_size=1024, crop_size=crop_size,
-                            flips=True, scale_jitter=True, color_jitter=True,
-                            erase=False, noise=False, distort=False)
-
-    valset = xviewDataset(val_data, mode="val",
-                          actual_size=1024, crop_size=crop_size)
-
-    trainloader = DataLoader(trainset, batch_size=batch_size, shuffle=True,
-                            collate_fn=train_collate_fn, num_workers=num_workers,
+    val_loader = DataLoader(val_set, batch_size=val_batch_size, shuffle=False,
+                            collate_fn=tiles_collate_fn, num_workers=1,
                             pin_memory=True)
 
-    valloader = DataLoader(valset, batch_size=1, shuffle=False,
-                           collate_fn=val_collate_fn, num_workers=1,
-                           pin_memory=True)
+    return train_loader, val_loader
 
-    return trainloader, valloader
 
-def xview_test_loader_factory(xview_root, crop_size):
+def xview_test_loader_factory(xview_root, tile_size):
     # Read metadata
-    _, test_data = load_xview_metadata(xview_root)
+    _, _, test_data = load_xview_metadata(xview_root)
 
-    test_set = xviewDataset(test_data, mode="test", actual_size=1024, crop_size=crop_size)
+    test_set = xviewDataset(test_data, mode="tiles", actual_size=1024, crop_size=1024, tile_size=tile_size)
     test_loader = DataLoader(test_set, batch_size=1, shuffle=False,
                              collate_fn=test_collate_fn, num_workers=1, pin_memory=True)
 
     return test_loader
-
-

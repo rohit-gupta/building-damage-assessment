@@ -50,10 +50,12 @@ semseg_model = deeplabv3_resnet50(pretrained=False,
 semseg_model = semseg_model.to(device)
 # print(semseg_model)
 # create dataloader
-trainloader, valloader = xview_train_loader_factory(config["paths"]["XVIEW_ROOT"],
+trainloader, valloader = xview_train_loader_factory("segmentation",
+                                                    config["paths"]["XVIEW_ROOT"],
                                                     config["dataloader"]["DATA_VERSION"],
                                                     config["dataloader"]["USE_TIER3_TRAIN"],
                                                     config["dataloader"]["CROP_SIZE"],
+                                                    config["dataloader"]["TILE_SIZE"],
                                                     config["dataloader"]["BATCH_SIZE"],
                                                     config["dataloader"]["THREADS"])
 
@@ -208,8 +210,8 @@ for epoch in range(int(config["hyperparameters"]["NUM_EPOCHS"])):
         # Write to disk for visually tracking training progress
         save_path = "val_results/" + config_name + "/" + str(idx) + "/"
         pathlib.Path(save_path).mkdir(parents=True, exist_ok=True)
-        pre_pred = reconstruct_from_tiles(pre_preds, 5, config["dataloader"]["CROP_SIZE"])
-        post_pred = reconstruct_from_tiles(post_preds, 5, config["dataloader"]["CROP_SIZE"])
+        pre_pred = reconstruct_from_tiles(pre_preds, 5, config["dataloader"]["TILES_SIZE"])
+        post_pred = reconstruct_from_tiles(post_preds, 5, config["dataloader"]["TILES_SIZE"])
 
         r = postprocess_segmap_tensor_to_pil_img(logits_to_probs(pre_pred), binarize=True)
         r.save(save_path + "pre_pred_epoch_" + str(epoch) + ".png")
@@ -218,11 +220,11 @@ for epoch in range(int(config["hyperparameters"]["NUM_EPOCHS"])):
 
         # Groundtruth only needs to be saved once
         if epoch == 0:
-            pre_img = reconstruct_from_tiles(pretiles[0], 3, config["dataloader"]["CROP_SIZE"])
-            post_img = reconstruct_from_tiles(posttiles[0], 3, config["dataloader"]["CROP_SIZE"])
+            pre_img = reconstruct_from_tiles(pretiles[0], 3, config["dataloader"]["TILES_SIZE"])
+            post_img = reconstruct_from_tiles(posttiles[0], 3, config["dataloader"]["TILES_SIZE"])
 
-            pre_gt = reconstruct_from_tiles(prelabels[0], 5, config["dataloader"]["CROP_SIZE"])
-            post_gt = reconstruct_from_tiles(postlabels[0], 5, config["dataloader"]["CROP_SIZE"])
+            pre_gt = reconstruct_from_tiles(prelabels[0], 5, config["dataloader"]["TILES_SIZE"])
+            post_gt = reconstruct_from_tiles(postlabels[0], 5, config["dataloader"]["TILES_SIZE"])
 
             pilimg = input_tensor_to_pil_img(pre_img)
             pilimg.save(save_path + "pre_image.png")

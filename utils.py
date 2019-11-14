@@ -295,30 +295,31 @@ def load_xview_metadata(xview_root, data_version, use_tier3):
     data_dir = xview_root + data_version
     train_label_files = glob.glob(data_dir + "train/labels/*")
     train_image_files = glob.glob(data_dir + "train/images/*")
+
     if use_tier3:
         tier3_label_files = glob.glob(data_dir + "tier3/labels/*")
         tier3_image_files = glob.glob(data_dir + "tier3/images/*")
         train_label_files += tier3_label_files
         train_image_files += tier3_image_files
     test_image_files = glob.glob(data_dir + "test/images/*")
-    train_data = {}
+    trainval_data = {}
     for file_name in train_label_files:
         disaster, image_num, pre_or_post, _ = file_name.split("_")
         # disaster = disaster.replace(data_dir + "train/labels/", "")
         disaster = disaster.split("/")[-1]
         input_id = disaster + "_" + image_num
-        if input_id not in train_data.keys():
-            train_data[input_id] = {}
-        train_data[input_id][pre_or_post + "_label_file"] = file_name
+        if input_id not in trainval_data.keys():
+            trainval_data[input_id] = {}
+        trainval_data[input_id][pre_or_post + "_label_file"] = file_name
 
     for file_name in train_image_files:
         disaster, image_num, pre_or_post, _ = file_name.split("_")
         # disaster = disaster.replace(data_dir + "train/images/", "")
         disaster = disaster.split("/")[-1]
         input_id = disaster + "_" + image_num
-        if input_id not in train_data.keys():
-            train_data[input_id] = {}
-        train_data[input_id][pre_or_post + "_image_file"] = file_name
+        if input_id not in trainval_data.keys():
+            trainval_data[input_id] = {}
+        trainval_data[input_id][pre_or_post + "_image_file"] = file_name
 
     test_data = {}
     for file_name in test_image_files:
@@ -327,7 +328,17 @@ def load_xview_metadata(xview_root, data_version, use_tier3):
             test_data[input_id] = {}
         test_data[input_id][pre_or_post + "_image_file"] = file_name
 
-    return train_data, test_data
+    # Carry out train/val split
+    with open(data_dir + "val-split.txt", "r") as f:
+        val_keys = [x.strip() for x in f.readlines()]
+    train_keys = list(set(list(trainval_data.keys())) - set(val_keys))
+    val_keys = sorted(val_keys)
+    train_keys = sorted(train_keys)
+
+    train_data = {key: val for key, val in trainval_data.items() if key in train_keys}
+    val_data = {key: val for key, val in trainval_data.items() if key in val_keys}
+
+    return train_data, val_data, test_data
 
 
 def main():
