@@ -102,9 +102,8 @@ def postprocess_segmap_tensor_to_pil_img(segmap_tensor, apply_color=True, binari
     r = Image.fromarray(processed_segmap.astype(np.uint8))
     if apply_color:
         r.putpalette(colors)
-        return r
-    else:
-        return r
+    
+    return r
 
 
 def EMSG(errtype="ERROR"):

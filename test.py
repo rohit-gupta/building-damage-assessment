@@ -29,7 +29,7 @@ config_file = config_name + ".ini"
 config = configparser.ConfigParser()
 config.read(config_file)
 
-BEST_EPOCH = 169
+BEST_EPOCH = 98
 
 if torch.cuda.is_available():
     device = "cuda"
@@ -42,7 +42,7 @@ semseg_model = deeplabv3_resnet50(pretrained=False,
 semseg_model = semseg_model.to(device)
 # create dataloader
 test_loader = xview_test_loader_factory(config["paths"]["XVIEW_ROOT"],
-                                        int(config["dataloader"]["TILES_SIZE"]))
+                                        int(config["dataloader"]["TILE_SIZE"]))
 
 print("Beginning Test Inference using model from Epoch #" + str(BEST_EPOCH) + ":")
 models_folder = str(config["paths"]["MODELS"]) + config_name + "/"
@@ -76,8 +76,8 @@ for idx, (pretiles, posttiles) in enumerate(test_loader):
     num_id = str(idx)
     num_id = "".join(["0"] * (5 - len(num_id)) + list(num_id))
 
-    pre_pred = reconstruct_from_tiles(pre_preds, 5, int(config["dataloader"]["CROP_SIZE"]))
-    post_pred = reconstruct_from_tiles(post_preds, 5, int(config["dataloader"]["CROP_SIZE"]))
+    pre_pred = reconstruct_from_tiles(pre_preds, 5, int(config["dataloader"]["TILE_SIZE"]))
+    post_pred = reconstruct_from_tiles(post_preds, 5, int(config["dataloader"]["TILE_SIZE"]))
 
     # Save results for leaderboard
 
@@ -93,8 +93,8 @@ for idx, (pretiles, posttiles) in enumerate(test_loader):
     r.save(visual_results_path + num_id + "_post_pred.png")
 
     # Save input images as well for visual reference
-    pre_img = reconstruct_from_tiles(pretiles[0], 3, int(config["dataloader"]["CROP_SIZE"]))
-    post_img = reconstruct_from_tiles(posttiles[0], 3, int(config["dataloader"]["CROP_SIZE"]))
+    pre_img = reconstruct_from_tiles(pretiles[0], 3, int(config["dataloader"]["TILE_SIZE"]))
+    post_img = reconstruct_from_tiles(posttiles[0], 3, int(config["dataloader"]["TILE_SIZE"]))
 
     pilimg = input_tensor_to_pil_img(pre_img)
     pilimg.save(visual_results_path + num_id + "_pre_image.png")

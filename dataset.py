@@ -165,8 +165,9 @@ class xviewDataset(Dataset):
         if flip is None or self.flips is False:
             flipped_pre_img = cropped_pre_img
             flipped_post_img = cropped_post_img
-            flipped_pre_segmap = cropped_pre_segmap
-            flipped_post_segmap = cropped_post_segmap
+            if self.load_segmaps:
+                flipped_pre_segmap = cropped_pre_segmap
+                flipped_post_segmap = cropped_post_segmap
         else:
             # print(flip)
             if "rot" in flip:
@@ -317,9 +318,10 @@ def xview_train_loader_factory(mode, xview_root, data_version, use_tier3, crop_s
 
 def xview_test_loader_factory(xview_root, tile_size):
     # Read metadata
-    _, _, test_data = load_xview_metadata(xview_root)
+    _, _, test_data = load_xview_metadata(xview_root, "v2/", False)
 
-    test_set = xviewDataset(test_data, mode="tiles", actual_size=1024, crop_size=1024, tile_size=tile_size)
+    test_set = xviewDataset(test_data, mode="tiles", load_segmaps=False, 
+                            actual_size=1024, crop_size=1024, tile_size=tile_size)
     test_loader = DataLoader(test_set, batch_size=1, shuffle=False,
                              collate_fn=test_collate_fn, num_workers=1, pin_memory=True)
 

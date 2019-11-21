@@ -12,6 +12,10 @@ scores/
 *score.json
 val_results/
 test_results/
+
+# Libreoffice lock files
+.~lock.*
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

@@ -1,10 +1,9 @@
 
-# from utils import convert_color_segmap_to_int
-# from utils import open_image_as_nparray
 import pathlib
 from PIL import Image
 import numpy as np
 from glob import glob
+import os
 
 colors = [[  0,   0, 200],  # Blue:   Background
           [  0, 200,   0],  # Green:  No Damage
@@ -19,16 +18,17 @@ def open_image_as_nparray(img_path, dtype):
     return np.array(Image.open(img_path), dtype=dtype)
 
 
-# prefix = "samples/"
-config = "default_lb/"
-prefix = "val_results/" + config
+XVIEW_CONFIG = os.environ["XVIEW_CONFIG"]
+EPOCHS = int(os.environ["XVIEW_EPOCHS"])
+
+prefix = "val_results/" + XVIEW_CONFIG
 samples = glob(prefix + "*/")
 
-output_dir = "val_scoring/" + config
+output_dir = "val_scoring/" + XVIEW_CONFIG
 # Create Required Directories
 targets_dir = output_dir + "targets/"
 pathlib.Path(targets_dir).mkdir(parents=True, exist_ok=True)
-for epoch in range(200):
+for epoch in range(EPOCHS):
     predictions_dir = output_dir + str(epoch) + "/predictions/"
     predictions_color_dir = output_dir + str(epoch) + "/predictions_color/"
     pathlib.Path(predictions_dir).mkdir(parents=True, exist_ok=True)
@@ -52,7 +52,7 @@ for idx, sample in enumerate(samples):
     Image.fromarray(pre_gt).save(targets_dir + "test_localization_" + num_id + "_target.png")
     Image.fromarray(post_gt).save(targets_dir + "test_damage_" + num_id + "_target.png")
 
-    for epoch in range(200):
+    for epoch in range(EPOCHS):
         # Read Results from DeepLab
         pre_pred_path = sample + "pre_pred_epoch_" + str(epoch)
         post_pred_path = sample + "post_pred_epoch_" + str(epoch)

@@ -60,10 +60,10 @@ trainloader, valloader = xview_train_loader_factory("segmentation",
                                                     config["dataloader"]["THREADS"])
 
 # For starters, train a constant LR Model
-optimizer = optim.SGD(semseg_model.parameters(),
-                      lr=config["hyperparameters"]["MAX_LR"],
-                      momentum=config["hyperparameters"]["MOMENTUM"])
-
+# optimizer = optim.SGD(semseg_model.parameters(),
+#                       lr=config["hyperparameters"]["MAX_LR"],
+#                       momentum=config["hyperparameters"]["MOMENTUM"])
+optimizer = optim.AdamW(semseg_model.parameters(), lr=0.0001, weight_decay=0.00001)
 # initialize mixed precision training
 #print(config["misc"]["APEX_OPT_LEVEL"])
 if config["misc"]["APEX_OPT_LEVEL"] != "None":
