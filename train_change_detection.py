@@ -14,7 +14,8 @@ config = read_config(config_name)
 
 if config_name == "default_lb":
     BEST_EPOCH = 169
-
+elif config_name == "locaware_local_ssd":
+    BEST_EPOCH = -1  # TODO
 if torch.cuda.is_available():
     gpu0 = torch.device('cuda:0')
     gpu1 = torch.device('cuda:1')
@@ -34,10 +35,12 @@ changenet = changenet.to(gpu1)
 
 print(changenet)
 
-trainloader, valloader = xview_train_loader_factory(config["paths"]["XVIEW_ROOT"],
+trainloader, valloader = xview_train_loader_factory("change",
+                                                    config["paths"]["XVIEW_ROOT"],
                                                     config["dataloader"]["DATA_VERSION"],
                                                     config["dataloader"]["USE_TIER3_TRAIN"],
-                                                    1024,
+                                                    config["dataloader"]["CROP_SIZE"],
+                                                    config["dataloader"]["TILE_SIZE"],
                                                     config["dataloader"]["BATCH_SIZE"],
                                                     config["dataloader"]["THREADS"])
 
