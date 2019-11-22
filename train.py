@@ -19,6 +19,7 @@ import torch.optim as optim
 import torch.nn as nn
 
 from apex import amp
+from apex.parallel import DistributedDataParallel as DDP, convert_syncbn_model
 
 from dsilva_metrics.iou import IoU
 from logger import MetricLog
@@ -59,16 +60,35 @@ trainloader, valloader = xview_train_loader_factory("segmentation",
                                                     config["dataloader"]["BATCH_SIZE"],
                                                     config["dataloader"]["THREADS"])
 
+if config["dataloader"]["NUM_GPUS"] > 1:
+    semseg_model = convert_syncbn_model(semseg_model)
+
 # For starters, train a constant LR Model
 # optimizer = optim.SGD(semseg_model.parameters(),
 #                       lr=config["hyperparameters"]["MAX_LR"],
 #                       momentum=config["hyperparameters"]["MOMENTUM"])
-optimizer = optim.AdamW(semseg_model.parameters(), lr=0.0001, weight_decay=0.00001)
+if config["hyperparameters"]["OPTIMIZER"] == "ADAMW":
+    optimizer = optim.AdamW(semseg_model.parameters(),
+                            lr=config["hyperparameters"]["INITIAL_LR"],
+                            weight_decay=config["hyperparameters"]["WEIGHT_DECAY"])
+elif config["hyperparameters"]["OPTIMIZER"] == "SGD":
+    optimizer = optim.SGD(semseg_model.parameters(),
+                          lr=config["hyperparameters"]["INITIAL_LR"],
+                          momentum=config["hyperparameters"]["MOMENTUM"],
+                          weight_decay=config["hyperparameters"]["WEIGHT_DECAY"])
+elif config["hyperparameters"]["OPTIMIZER"] == "ASGD":
+    optimizer = optim.SGD(semseg_model.parameters(),
+                          lr=config["hyperparameters"]["INITIAL_LR"],
+                          to=1e5,
+                          weight_decay=config["hyperparameters"]["WEIGHT_DECAY"])
+
 # initialize mixed precision training
 #print(config["misc"]["APEX_OPT_LEVEL"])
 if config["misc"]["APEX_OPT_LEVEL"] != "None":
     semseg_model, optimizer = amp.initialize(semseg_model, optimizer, opt_level=config["misc"]["APEX_OPT_LEVEL"])
 
+if config["dataloader"]["NUM_GPUS"] > 1:
+    semseg_model = DDP(semseg_model)
 
 # print("Entering Training Loop")
 

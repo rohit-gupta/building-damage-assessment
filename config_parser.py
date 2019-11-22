@@ -19,7 +19,9 @@ type_map = {
         "LOCALIZATION_WEIGHT": float,
         "CLASSIFICATION_WEIGHT": float,
         "NUM_EPOCHS": int,
+        "OPTIMIZER": str,
         "INITIAL_LR": float,
+        "WEIGHT_DECAY": float,
         "MOMENTUM": float,
         "WARMUP_EPOCHS": int,
         "MAX_LR": float,
@@ -32,7 +34,8 @@ type_map = {
         "CROP_SIZE": int,
         "TILE_SIZE": int,
         "THREADS": int,
-        "BATCH_SIZE": int
+        "BATCH_SIZE": int,
+        "NUM_GPUS": int
     },
     "paths": {
         "XVIEW_ROOT": str,
