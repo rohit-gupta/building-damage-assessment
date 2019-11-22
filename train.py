@@ -9,6 +9,7 @@ __license__ = None
 
 import numpy as np
 from PIL import Image
+import argparse
 import pathlib
 import tqdm
 
@@ -39,16 +40,33 @@ config_name = os.environ["XVIEW_CONFIG"]
 config = read_config(config_name)
 
 
-if torch.cuda.is_available():
-    device = "cuda"
-else:
-    device = "cpu"
+parser = argparse.ArgumentParser()
+# local_rank argument is supplied automatically by torch.distributed.launch
+parser.add_argument("--local_rank", default=0, type=int)
+args = parser.parse_args()
 
+args.distributed = False
+
+if 'WORLD_SIZE' in os.environ:
+    args.distributed = int(os.environ['WORLD_SIZE']) > 1
+
+if args.distributed:
+    # FOR DISTRIBUTED:  Set the device according to local_rank.
+    torch.cuda.set_device(args.local_rank)
+
+    # FOR DISTRIBUTED:  Initialize the backend.  torch.distributed.launch will provide
+    # environment variables, and requires that you use init_method=`env://`.
+    torch.distributed.init_process_group(backend='nccl',
+                                         init_method='env://')
+else:
+    if torch.cuda.is_available():
+        torch.cuda.set_device("cuda")
+    else:
+        torch.cuda.set_device("cpu")
 semseg_model = deeplabv3_resnet50(pretrained=False,
                                   num_classes=5,
                                   aux_loss=None)
-
-semseg_model = semseg_model.to(device)
+semseg_model = semseg_model.cuda()
 # print(semseg_model)
 # create dataloader
 trainloader, valloader = xview_train_loader_factory("segmentation",
@@ -136,8 +154,8 @@ for epoch in range(int(config["hyperparameters"]["NUM_EPOCHS"])):
     train_pbar = tqdm.tqdm(total=len(trainloader))
     for images, segmaps in trainloader:
         # Send tensors to GPU
-        images = images.to(device)
-        segmaps = segmaps.to(device)
+        images = images.cuda()
+        segmaps = segmaps.cuda()
 
         # zero the parameter gradients
         optimizer.zero_grad()
@@ -194,11 +212,11 @@ for epoch in range(int(config["hyperparameters"]["NUM_EPOCHS"])):
     for idx, (pretiles, posttiles, prelabels, postlabels) in enumerate(valloader):
         n_val = len(pretiles)
 
-        pretiles[0] = pretiles[0].to(device)
-        posttiles[0] = posttiles[0].to(device)
+        pretiles[0] = pretiles[0].cuda()
+        posttiles[0] = posttiles[0].cuda()
 
-        prelabels[0] = prelabels[0].to(device)
-        postlabels[0] = postlabels[0].to(device)
+        prelabels[0] = prelabels[0].cuda()
+        postlabels[0] = postlabels[0].cuda()
 
         with torch.set_grad_enabled(False):
             preoutputs = semseg_model(pretiles[0])
