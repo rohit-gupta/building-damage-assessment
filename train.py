@@ -42,7 +42,7 @@ config = read_config(config_name)
 
 parser = argparse.ArgumentParser()
 # local_rank argument is supplied automatically by torch.distributed.launch
-parser.add_argument("--local_rank", default=0, type=int)
+parser.add_argument("--local_rank", default=1, type=int)
 args = parser.parse_args()
 
 args.distributed = False
@@ -109,49 +109,51 @@ if args.distributed > 1:
     semseg_model = DDP(semseg_model)
 
 # print("Entering Training Loop")
+if args.local_rank == 1:
+    train_loss = AverageMeter("train_loss")
+    train_loc_loss = AverageMeter("train_loc_loss")
+    train_cls_loss = AverageMeter("train_cls_loss")
+    val_loss = AverageMeter("val_loss")
+    val_loc_loss = AverageMeter("val_loc_loss")
+    val_cls_loss = AverageMeter("val_cls_loss")
+    # iou_mean = AverageMeter("mIoU")
+    # iou_localization = AverageMeter("localization_iou")
+    train_iou = IoU(5)
+    val_pre_iou = IoU(5)
+    val_post_iou = IoU(5)
 
-train_loss = AverageMeter("train_loss")
-train_loc_loss = AverageMeter("train_loc_loss")
-train_cls_loss = AverageMeter("train_cls_loss")
-val_loss = AverageMeter("val_loss")
-val_loc_loss = AverageMeter("val_loc_loss")
-val_cls_loss = AverageMeter("val_cls_loss")
-# iou_mean = AverageMeter("mIoU")
-# iou_localization = AverageMeter("localization_iou")
-train_iou = IoU(5)
-val_pre_iou = IoU(5)
-val_post_iou = IoU(5)
+    train_loss_log = MetricLog("train_loss")
+    train_loc_loss_log = MetricLog("train_loc_loss")
+    train_cls_loss_log = MetricLog("train_cls_loss")
+    train_mIoU_log = MetricLog("train_mIoU")
+    train_localization_IoU_log = MetricLog("train_localization_IoU")
 
-train_loss_log = MetricLog("train_loss")
-train_loc_loss_log = MetricLog("train_loc_loss")
-train_cls_loss_log = MetricLog("train_cls_loss")
-train_mIoU_log = MetricLog("train_mIoU")
-train_localization_IoU_log = MetricLog("train_localization_IoU")
-
-val_loss_log = MetricLog("val_loss")
-val_loc_loss_log = MetricLog("val_loc_loss")
-val_cls_loss_log = MetricLog("val_cls_loss")
-val_mIoU_log = MetricLog("val_mIoU")
-val_localization_IoU_log = MetricLog("val_localization_IoU")
+    val_loss_log = MetricLog("val_loss")
+    val_loc_loss_log = MetricLog("val_loc_loss")
+    val_cls_loss_log = MetricLog("val_cls_loss")
+    val_mIoU_log = MetricLog("val_mIoU")
+    val_localization_IoU_log = MetricLog("val_localization_IoU")
 
 for epoch in range(int(config["hyperparameters"]["NUM_EPOCHS"])):
 
     print("Beginning Epoch #" + str(epoch) + ":\n")
-    # Reset Loss & metric tracking at beginning of epoch
-    train_loss.reset()
-    train_loc_loss.reset()
-    train_cls_loss.reset()
-    val_loss.reset()
-    val_loc_loss.reset()
-    val_cls_loss.reset()
-    train_iou.reset()
-    val_pre_iou.reset()
-    val_post_iou.reset()
+    if args.local_rank == 1:
+        # Reset Loss & metric tracking at beginning of epoch
+        train_loss.reset()
+        train_loc_loss.reset()
+        train_cls_loss.reset()
+        val_loss.reset()
+        val_loc_loss.reset()
+        val_cls_loss.reset()
+        train_iou.reset()
+        val_pre_iou.reset()
+        val_post_iou.reset()
 
     # Put model in training mode
     semseg_model.train()
 
-    train_pbar = tqdm.tqdm(total=len(trainloader))
+    if args.local_rank == 1:
+        train_pbar = tqdm.tqdm(total=len(trainloader))
     for images, segmaps in trainloader:
         # Send tensors to GPU
         images = images.cuda()
@@ -184,113 +186,116 @@ for epoch in range(int(config["hyperparameters"]["NUM_EPOCHS"])):
 
             optimizer.step()
 
-        train_loss.update(val=loss.item(), n=1)
-        train_loc_loss.update(val=loc_loss.item(), n=1)
-        train_cls_loss.update(val=cls_loss.item(), n=1)
-        segmaps_classid = segmaps.argmax(1)
-        train_iou.add(pred_segmaps.detach(), segmaps_classid.detach())
-        train_pbar.update(1)
+        if args.local_rank == 1:
+            train_loss.update(val=loss.item(), n=1)
+            train_loc_loss.update(val=loc_loss.item(), n=1)
+            train_cls_loss.update(val=cls_loss.item(), n=1)
+            segmaps_classid = segmaps.argmax(1)
+            train_iou.add(pred_segmaps.detach(), segmaps_classid.detach())
+            train_pbar.update(1)
 
-    # End of an epoch
-    (train_iou_list, train_miou) = train_iou.value()
-    train_localization_iou = train_iou_list[0]
+    if args.local_rank == 1:
 
-    # Log train metrics
-    train_loss_log.update(train_loss.value())
-    train_loc_loss_log.update(train_loc_loss.value())
-    train_cls_loss_log.update(train_cls_loss.value())
-    train_mIoU_log.update(train_miou)
-    train_localization_IoU_log.update(train_localization_iou)
+        # End of an epoch
+        (train_iou_list, train_miou) = train_iou.value()
+        train_localization_iou = train_iou_list[0]
 
-    train_pbar.close()
+        # Log train metrics
+        train_loss_log.update(train_loss.value())
+        train_loc_loss_log.update(train_loc_loss.value())
+        train_cls_loss_log.update(train_cls_loss.value())
+        train_mIoU_log.update(train_miou)
+        train_localization_IoU_log.update(train_localization_iou)
 
-    # Validation Phase of epoch
-    # Assume batch_size = 1 (higher sizes are impractical)
+        train_pbar.close()
 
-    val_pbar = tqdm.tqdm(total=len(valloader))
-    semseg_model.eval()
-    for idx, (pretiles, posttiles, prelabels, postlabels) in enumerate(valloader):
-        n_val = len(pretiles)
+        # Validation Phase of epoch
+        # Assume batch_size = 1 (higher sizes are impractical)
 
-        pretiles[0] = pretiles[0].cuda()
-        posttiles[0] = posttiles[0].cuda()
+        val_pbar = tqdm.tqdm(total=len(valloader))
+        semseg_model.eval()
+        for idx, (pretiles, posttiles, prelabels, postlabels) in enumerate(valloader):
+            n_val = len(pretiles)
 
-        prelabels[0] = prelabels[0].cuda()
-        postlabels[0] = postlabels[0].cuda()
+            pretiles[0] = pretiles[0].cuda()
+            posttiles[0] = posttiles[0].cuda()
 
-        with torch.set_grad_enabled(False):
-            preoutputs = semseg_model(pretiles[0])
-            pre_preds = preoutputs['out']
-            postoutputs = semseg_model(posttiles[0])
-            post_preds = postoutputs['out']
+            prelabels[0] = prelabels[0].cuda()
+            postlabels[0] = postlabels[0].cuda()
 
-            # Compute metrics (for now we always log locaware val loss)
-            val_pre_loc_loss,\
-            val_pre_cls_loss,\
-            val_pre_loss_val = localization_aware_cross_entropy(prelabels[0], pre_preds,
-                                                                config["hyperparameters"]["LOCALIZATION_WEIGHT"],
-                                                                config["hyperparameters"]["CLASSIFICATION_WEIGHT"])
-            val_post_loc_loss,\
-            val_post_cls_loss,\
-            val_post_loss_val = localization_aware_cross_entropy(postlabels[0], post_preds,
-                                                                 config["hyperparameters"]["LOCALIZATION_WEIGHT"],
-                                                                 config["hyperparameters"]["CLASSIFICATION_WEIGHT"])
-            val_loss_val = (val_pre_loss_val + val_post_loss_val)/2
-            val_loss.update(val=val_loss_val.item(), n=1)
-            val_loc_loss.update(val=val_pre_loc_loss.item(), n=1)
-            val_cls_loss.update(val=val_post_cls_loss.item(), n=1)
+            with torch.set_grad_enabled(False):
+                preoutputs = semseg_model(pretiles[0])
+                pre_preds = preoutputs['out']
+                postoutputs = semseg_model(posttiles[0])
+                post_preds = postoutputs['out']
 
-            pre_gt_classid = prelabels[0].argmax(1)
-            post_gt_classid = postlabels[0].argmax(1)
-            val_pre_iou.add(pre_preds.detach(), pre_gt_classid.detach())
-            val_post_iou.add(post_preds.detach(), post_gt_classid.detach())
+                # Compute metrics (for now we always log locaware val loss)
+                val_pre_loc_loss,\
+                val_pre_cls_loss,\
+                val_pre_loss_val = localization_aware_cross_entropy(prelabels[0], pre_preds,
+                                                                    config["hyperparameters"]["LOCALIZATION_WEIGHT"],
+                                                                    config["hyperparameters"]["CLASSIFICATION_WEIGHT"])
+                val_post_loc_loss,\
+                val_post_cls_loss,\
+                val_post_loss_val = localization_aware_cross_entropy(postlabels[0], post_preds,
+                                                                     config["hyperparameters"]["LOCALIZATION_WEIGHT"],
+                                                                     config["hyperparameters"]["CLASSIFICATION_WEIGHT"])
+                val_loss_val = (val_pre_loss_val + val_post_loss_val)/2
+                val_loss.update(val=val_loss_val.item(), n=1)
+                val_loc_loss.update(val=val_pre_loc_loss.item(), n=1)
+                val_cls_loss.update(val=val_post_cls_loss.item(), n=1)
 
-        # Write to disk for visually tracking training progress
-        save_path = "val_results/" + config_name + "/" + str(idx) + "/"
-        pathlib.Path(save_path).mkdir(parents=True, exist_ok=True)
-        pre_pred = reconstruct_from_tiles(pre_preds, 5, config["dataloader"]["TILE_SIZE"])
-        post_pred = reconstruct_from_tiles(post_preds, 5, config["dataloader"]["TILE_SIZE"])
+                pre_gt_classid = prelabels[0].argmax(1)
+                post_gt_classid = postlabels[0].argmax(1)
+                val_pre_iou.add(pre_preds.detach(), pre_gt_classid.detach())
+                val_post_iou.add(post_preds.detach(), post_gt_classid.detach())
 
-        r = postprocess_segmap_tensor_to_pil_img(logits_to_probs(pre_pred), binarize=True)
-        r.save(save_path + "pre_pred_epoch_" + str(epoch) + ".png")
-        r = postprocess_segmap_tensor_to_pil_img(logits_to_probs(post_pred))
-        r.save(save_path + "post_pred_epoch_" + str(epoch) + ".png")
+            # Write to disk for visually tracking training progress
+            save_path = "val_results/" + config_name + "/" + str(idx) + "/"
+            pathlib.Path(save_path).mkdir(parents=True, exist_ok=True)
+            pre_pred = reconstruct_from_tiles(pre_preds, 5, config["dataloader"]["TILE_SIZE"])
+            post_pred = reconstruct_from_tiles(post_preds, 5, config["dataloader"]["TILE_SIZE"])
 
-        # Groundtruth only needs to be saved once
-        if epoch == 0:
-            pre_img = reconstruct_from_tiles(pretiles[0], 3, config["dataloader"]["TILE_SIZE"])
-            post_img = reconstruct_from_tiles(posttiles[0], 3, config["dataloader"]["TILE_SIZE"])
+            r = postprocess_segmap_tensor_to_pil_img(logits_to_probs(pre_pred), binarize=True)
+            r.save(save_path + "pre_pred_epoch_" + str(epoch) + ".png")
+            r = postprocess_segmap_tensor_to_pil_img(logits_to_probs(post_pred))
+            r.save(save_path + "post_pred_epoch_" + str(epoch) + ".png")
 
-            pre_gt = reconstruct_from_tiles(prelabels[0], 5, config["dataloader"]["TILE_SIZE"])
-            post_gt = reconstruct_from_tiles(postlabels[0], 5, config["dataloader"]["TILE_SIZE"])
+            # Groundtruth only needs to be saved once
+            if epoch == 0:
+                pre_img = reconstruct_from_tiles(pretiles[0], 3, config["dataloader"]["TILE_SIZE"])
+                post_img = reconstruct_from_tiles(posttiles[0], 3, config["dataloader"]["TILE_SIZE"])
 
-            pilimg = input_tensor_to_pil_img(pre_img)
-            pilimg.save(save_path + "pre_image.png")
-            pilimg = input_tensor_to_pil_img(post_img)
-            pilimg.save(save_path + "post_image.png")
+                pre_gt = reconstruct_from_tiles(prelabels[0], 5, config["dataloader"]["TILE_SIZE"])
+                post_gt = reconstruct_from_tiles(postlabels[0], 5, config["dataloader"]["TILE_SIZE"])
 
-            r = segmap_tensor_to_pil_img(pre_gt)
-            r.save(save_path + "pre_gt.png")
-            r = segmap_tensor_to_pil_img(post_gt)
-            r.save(save_path + "post_gt.png")
-        val_pbar.update(1)
+                pilimg = input_tensor_to_pil_img(pre_img)
+                pilimg.save(save_path + "pre_image.png")
+                pilimg = input_tensor_to_pil_img(post_img)
+                pilimg.save(save_path + "post_image.png")
 
-    # End of val phase
-    (pre_iou_list, pre_miou) = val_pre_iou.value()
-    (post_iou_list, post_miou) = val_post_iou.value()
-    val_localization_iou = pre_iou_list[0]
-    val_miou = post_miou
+                r = segmap_tensor_to_pil_img(pre_gt)
+                r.save(save_path + "pre_gt.png")
+                r = segmap_tensor_to_pil_img(post_gt)
+                r.save(save_path + "post_gt.png")
+            val_pbar.update(1)
 
-    val_loss_log.update(val_loss.value())
-    val_loc_loss_log.update(val_loc_loss.value())
-    val_cls_loss_log.update(val_cls_loss.value())
-    val_localization_IoU_log.update(val_localization_iou)
-    val_mIoU_log.update(val_miou)
+        # End of val phase
+        (pre_iou_list, pre_miou) = val_pre_iou.value()
+        (post_iou_list, post_miou) = val_post_iou.value()
+        val_localization_iou = pre_iou_list[0]
+        val_miou = post_miou
 
-    val_pbar.close()
+        val_loss_log.update(val_loss.value())
+        val_loc_loss_log.update(val_loc_loss.value())
+        val_cls_loss_log.update(val_cls_loss.value())
+        val_localization_IoU_log.update(val_localization_iou)
+        val_mIoU_log.update(val_miou)
 
-    if epoch % config["misc"]["SAVE_FREQ"] == 0:
-        models_folder = config["paths"]["MODELS"] + config_name + "/"
-        pathlib.Path(models_folder).mkdir(parents=True, exist_ok=True)
-        torch.save(semseg_model.state_dict(), models_folder + str(epoch) + ".pth")
+        val_pbar.close()
+
+        if epoch % config["misc"]["SAVE_FREQ"] == 0:
+            models_folder = config["paths"]["MODELS"] + config_name + "/"
+            pathlib.Path(models_folder).mkdir(parents=True, exist_ok=True)
+            torch.save(semseg_model.state_dict(), models_folder + str(epoch) + ".pth")
 
