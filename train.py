@@ -60,7 +60,7 @@ if args.distributed:
                                          init_method='env://')
 else:
     if torch.cuda.is_available():
-        torch.cuda.set_device("cuda")
+        torch.cuda.set_device("cuda:0")
     else:
         torch.cuda.set_device("cpu")
 semseg_model = deeplabv3_resnet50(pretrained=False,
@@ -78,7 +78,7 @@ trainloader, valloader = xview_train_loader_factory("segmentation",
                                                     config["dataloader"]["BATCH_SIZE"],
                                                     config["dataloader"]["THREADS"])
 
-if config["dataloader"]["NUM_GPUS"] > 1:
+if args.distributed > 1:
     semseg_model = convert_syncbn_model(semseg_model)
 
 # For starters, train a constant LR Model
@@ -105,7 +105,7 @@ elif config["hyperparameters"]["OPTIMIZER"] == "ASGD":
 if config["misc"]["APEX_OPT_LEVEL"] != "None":
     semseg_model, optimizer = amp.initialize(semseg_model, optimizer, opt_level=config["misc"]["APEX_OPT_LEVEL"])
 
-if config["dataloader"]["NUM_GPUS"] > 1:
+if args.distributed > 1:
     semseg_model = DDP(semseg_model)
 
 # print("Entering Training Loop")
