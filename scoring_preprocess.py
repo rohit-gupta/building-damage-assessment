@@ -18,9 +18,9 @@ def open_image_as_nparray(img_path, dtype):
     return np.array(Image.open(img_path), dtype=dtype)
 
 
-XVIEW_CONFIG = os.environ["XVIEW_CONFIG"]
+XVIEW_CONFIG = os.environ["XVIEW_CONFIG"] + "/"
 EPOCHS = int(os.environ["XVIEW_EPOCHS"])
-
+print(XVIEW_CONFIG, EPOCHS)
 prefix = "val_results/" + XVIEW_CONFIG
 samples = glob(prefix + "*/")
 

@@ -90,9 +90,9 @@ def logits_to_probs(segmap_logits):
     return torch.cat([bg_probs, class_probs], dim=0)
 
 
-def postprocess_segmap_tensor_to_pil_img(segmap_tensor, apply_color=True, binarize=False):
+def postprocess_segmap_tensor_to_pil_img(segmap_tensor, apply_color=True, binarize=False, threshold=0.5):
     segmap = segmap_tensor.cpu().numpy()
-    background = segmap[0, :, :] > 0.5
+    background = segmap[0, :, :] > threshold
     foreground = ~background
     damage_class = np.argmax(segmap[1:, :, :], axis=0)
     damage_class += 1
