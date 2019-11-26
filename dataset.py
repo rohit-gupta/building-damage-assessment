@@ -272,7 +272,9 @@ def test_collate_fn(batch):
     return (pretiles_instance_tensors, posttiles_instance_tensors)
 
 
-def xview_train_loader_factory(mode, xview_root, data_version, use_tier3, crop_size, tile_size, batch_size, num_workers):
+def xview_train_loader_factory(mode, xview_root, data_version, use_tier3,
+                               crop_size, tile_size,
+                               batch_size, num_workers, distributed):
     # Read metadata
     train_data, val_data, _ = load_xview_metadata(xview_root, data_version, use_tier3)
 
@@ -305,15 +307,24 @@ def xview_train_loader_factory(mode, xview_root, data_version, use_tier3, crop_s
     val_set = xviewDataset(val_data, mode="tiles", load_segmaps=True,
                            actual_size=1024, crop_size=val_crop_size, tile_size=val_tile_size)
 
-    train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True,
+    train_sampler = None
+    val_sampler = None
+
+    if distributed:
+        train_sampler = torch.utils.data.distributed.DistributedSampler(train_set)
+        # val_sampler = torch.utils.data.distributed.DistributedSampler(val_set)
+
+    train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=(train_sampler is None),
                               collate_fn=train_collate_fn, num_workers=num_workers,
+                              sampler=train_sampler,
                               pin_memory=True)
 
     val_loader = DataLoader(val_set, batch_size=val_batch_size, shuffle=False,
                             collate_fn=tiles_collate_fn, num_workers=1,
+                            sampler=val_sampler,
                             pin_memory=True)
 
-    return train_loader, val_loader
+    return train_loader, val_loader, train_sampler
 
 
 def xview_test_loader_factory(xview_root, tile_size):

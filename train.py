@@ -69,16 +69,16 @@ semseg_model = deeplabv3_resnet50(pretrained=False,
 semseg_model = semseg_model.cuda()
 # print(semseg_model)
 # create dataloader
-trainloader, valloader = xview_train_loader_factory("segmentation",
-                                                    config["paths"]["XVIEW_ROOT"],
-                                                    config["dataloader"]["DATA_VERSION"],
-                                                    config["dataloader"]["USE_TIER3_TRAIN"],
-                                                    config["dataloader"]["CROP_SIZE"],
-                                                    config["dataloader"]["TILE_SIZE"],
-                                                    config["dataloader"]["BATCH_SIZE"],
-                                                    config["dataloader"]["THREADS"])
+trainloader, valloader, train_sampler = xview_train_loader_factory("segmentation",
+                                                                   config["paths"]["XVIEW_ROOT"],
+                                                                   config["dataloader"]["DATA_VERSION"],
+                                                                   config["dataloader"]["USE_TIER3_TRAIN"],
+                                                                   config["dataloader"]["CROP_SIZE"],
+                                                                   config["dataloader"]["TILE_SIZE"],
+                                                                   config["dataloader"]["BATCH_SIZE"],
+                                                                   config["dataloader"]["THREADS"])
 
-if args.distributed > 1:
+if args.distributed:
     semseg_model = convert_syncbn_model(semseg_model)
 
 # For starters, train a constant LR Model
@@ -105,7 +105,7 @@ elif config["hyperparameters"]["OPTIMIZER"] == "ASGD":
 if config["misc"]["APEX_OPT_LEVEL"] != "None":
     semseg_model, optimizer = amp.initialize(semseg_model, optimizer, opt_level=config["misc"]["APEX_OPT_LEVEL"])
 
-if args.distributed > 1:
+if args.distributed:
     semseg_model = DDP(semseg_model)
 
 # print("Entering Training Loop")
@@ -137,6 +137,9 @@ if args.local_rank == 1:
 for epoch in range(int(config["hyperparameters"]["NUM_EPOCHS"])):
 
     print("Beginning Epoch #" + str(epoch) + ":\n")
+
+    if args.distributed:
+        train_sampler.set_epoch(epoch)
     if args.local_rank == 1:
         # Reset Loss & metric tracking at beginning of epoch
         train_loss.reset()
