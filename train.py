@@ -76,7 +76,8 @@ trainloader, valloader, train_sampler = xview_train_loader_factory("segmentation
                                                                    config["dataloader"]["CROP_SIZE"],
                                                                    config["dataloader"]["TILE_SIZE"],
                                                                    config["dataloader"]["BATCH_SIZE"],
-                                                                   config["dataloader"]["THREADS"])
+                                                                   config["dataloader"]["THREADS"],
+                                                                   args.distributed)
 
 if args.distributed:
     semseg_model = convert_syncbn_model(semseg_model)
@@ -301,4 +302,5 @@ for epoch in range(int(config["hyperparameters"]["NUM_EPOCHS"])):
             models_folder = config["paths"]["MODELS"] + config_name + "/"
             pathlib.Path(models_folder).mkdir(parents=True, exist_ok=True)
             torch.save(semseg_model.state_dict(), models_folder + str(epoch) + ".pth")
+    torch.cuda.synchronize()
 
