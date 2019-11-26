@@ -339,6 +339,11 @@ def load_xview_metadata(xview_root, data_version, use_tier3):
 
     return train_data, val_data, test_data
 
+def reduce_tensor(tensor, world_size):
+    rt = tensor.clone()
+    torch.distributed.all_reduce(rt, op=torch.distributed.reduce_op.SUM)
+    rt /= world_size
+    return rt
 
 def main():
     """ Dummy main module for Library """

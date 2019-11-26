@@ -26,11 +26,16 @@ from dsilva_metrics.iou import IoU
 from logger import MetricLog
 from metrics import AverageMeter
 from dataset import xview_train_loader_factory
+
 from utils import input_tensor_to_pil_img
 from utils import segmap_tensor_to_pil_img
 from utils import reconstruct_from_tiles
 from utils import postprocess_segmap_tensor_to_pil_img, logits_to_probs
+
+from utils import reduce_tensor
+
 from losses import cross_entropy, localization_aware_cross_entropy
+
 
 # Configuration
 import os
@@ -49,6 +54,7 @@ args.distributed = False
 
 if 'WORLD_SIZE' in os.environ:
     args.distributed = int(os.environ['WORLD_SIZE']) > 1
+    args.world_size = int(os.environ['WORLD_SIZE'])
 
 if args.distributed:
     # FOR DISTRIBUTED:  Set the device according to local_rank.
@@ -119,15 +125,15 @@ if args.local_rank == 1:
     val_cls_loss = AverageMeter("val_cls_loss")
     # iou_mean = AverageMeter("mIoU")
     # iou_localization = AverageMeter("localization_iou")
-    train_iou = IoU(5)
+    # train_iou = IoU(5)
     val_pre_iou = IoU(5)
     val_post_iou = IoU(5)
 
     train_loss_log = MetricLog("train_loss")
     train_loc_loss_log = MetricLog("train_loc_loss")
     train_cls_loss_log = MetricLog("train_cls_loss")
-    train_mIoU_log = MetricLog("train_mIoU")
-    train_localization_IoU_log = MetricLog("train_localization_IoU")
+    # train_mIoU_log = MetricLog("train_mIoU")
+    # train_localization_IoU_log = MetricLog("train_localization_IoU")
 
     val_loss_log = MetricLog("val_loss")
     val_loc_loss_log = MetricLog("val_loc_loss")
@@ -149,7 +155,7 @@ for epoch in range(int(config["hyperparameters"]["NUM_EPOCHS"])):
         val_loss.reset()
         val_loc_loss.reset()
         val_cls_loss.reset()
-        train_iou.reset()
+        # train_iou.reset()
         val_pre_iou.reset()
         val_post_iou.reset()
 
@@ -190,26 +196,30 @@ for epoch in range(int(config["hyperparameters"]["NUM_EPOCHS"])):
 
             optimizer.step()
 
+        reduced_loss = reduce_tensor(loss, args.world_size)
+        reduced_loc_loss = reduce_tensor(loc_loss, args.world_size)
+        reduced_cls_loss = reduce_tensor(cls_loss, args.world_size)
+
         if args.local_rank == 1:
-            train_loss.update(val=loss.item(), n=1)
-            train_loc_loss.update(val=loc_loss.item(), n=1)
-            train_cls_loss.update(val=cls_loss.item(), n=1)
-            segmaps_classid = segmaps.argmax(1)
-            train_iou.add(pred_segmaps.detach(), segmaps_classid.detach())
+            train_loss.update(val=reduced_loss.item(), n=1./args.world_size)
+            train_loc_loss.update(val=reduced_loc_loss.item(), n=1./args.world_size)
+            train_cls_loss.update(val=reduced_cls_loss.item(), n=1./args.world_size)
+            # gt_segmaps_classid = segmaps.argmax(1)
+            # train_iou.add(pred_segmaps.detach(), gt_segmaps_classid.detach())
             train_pbar.update(1)
 
     if args.local_rank == 1:
 
         # End of an epoch
-        (train_iou_list, train_miou) = train_iou.value()
-        train_localization_iou = train_iou_list[0]
+        # (train_iou_list, train_miou) = train_iou.value()
+        # train_localization_iou = train_iou_list[0]
 
         # Log train metrics
         train_loss_log.update(train_loss.value())
         train_loc_loss_log.update(train_loc_loss.value())
         train_cls_loss_log.update(train_cls_loss.value())
-        train_mIoU_log.update(train_miou)
-        train_localization_IoU_log.update(train_localization_iou)
+        # train_mIoU_log.update(train_miou)
+        # train_localization_IoU_log.update(train_localization_iou)
 
         train_pbar.close()
 
