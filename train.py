@@ -219,9 +219,10 @@ for epoch in range(int(config["hyperparameters"]["NUM_EPOCHS"])):
             train_loss.update(val=loss_val, n=1./count)
             train_loc_loss.update(val=loc_loss_val, n=1./count)
             train_cls_loss.update(val=cls_loss_val, n=1./count)
+            train_pbar.update(1)
         # gt_segmaps_classid = segmaps.argmax(1)
         # train_iou.add(pred_segmaps.detach(), gt_segmaps_classid.detach())
-        train_pbar.update(1)
+
 
     if args.local_rank == 1:
 
