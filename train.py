@@ -90,11 +90,6 @@ trainloader, valloader, train_sampler = xview_train_loader_factory("segmentation
 if args.distributed:
     semseg_model = convert_syncbn_model(semseg_model)
 
-if "finetune" in config_name:
-    model_checkpoint = config["paths"]["MODELS"] + config["paths"]["BEST_MODEL"]
-    semseg_model.load_state_dict(torch.load(model_checkpoint))
-    print("Loading weights from", model_checkpoint)
-
 if config["hyperparameters"]["OPTIMIZER"] == "ADAMW":
     optimizer = optim.AdamW(semseg_model.parameters(),
                             lr=config["hyperparameters"]["INITIAL_LR"],
@@ -117,6 +112,11 @@ if config["misc"]["APEX_OPT_LEVEL"] != "None":
 
 if args.distributed:
     semseg_model = DDP(semseg_model)
+
+if "finetune" in config_name:
+    model_checkpoint = config["paths"]["MODELS"] + config["paths"]["BEST_MODEL"]
+    semseg_model.load_state_dict(torch.load(model_checkpoint))
+    print("Loading weights from", model_checkpoint)
 
 # print("Entering Training Loop")
 if args.local_rank == 1:
