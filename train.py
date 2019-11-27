@@ -73,6 +73,13 @@ semseg_model = deeplabv3_resnet50(pretrained=False,
                                   num_classes=5,
                                   aux_loss=None)
 semseg_model = semseg_model.cuda()
+
+if "finetune" in config_name:
+    model_checkpoint = config["paths"]["MODELS"] + config["paths"]["BEST_MODEL"]
+    semseg_model.load_state_dict(torch.load(model_checkpoint))
+    print("Loading weights from", model_checkpoint)
+
+
 # print(semseg_model)
 # create dataloader
 trainloader, valloader, train_sampler = xview_train_loader_factory("segmentation",
@@ -147,6 +154,7 @@ for epoch in range(int(config["hyperparameters"]["NUM_EPOCHS"])):
 
     if args.distributed:
         train_sampler.set_epoch(epoch)
+
     if args.local_rank == 1:
         # Reset Loss & metric tracking at beginning of epoch
         train_loss.reset()
@@ -196,17 +204,28 @@ for epoch in range(int(config["hyperparameters"]["NUM_EPOCHS"])):
 
             optimizer.step()
 
-        reduced_loss = reduce_tensor(loss, args.world_size)
-        reduced_loc_loss = reduce_tensor(loc_loss, args.world_size)
-        reduced_cls_loss = reduce_tensor(cls_loss, args.world_size)
+
+        if args.distributed:
+            reduced_loss = reduce_tensor(loss, args.world_size)
+            reduced_loc_loss = reduce_tensor(loc_loss, args.world_size)
+            reduced_cls_loss = reduce_tensor(cls_loss, args.world_size)
+            loss_val = reduced_loss.item()
+            loc_loss_val = reduced_loc_loss.item()
+            cls_loss_val = reduced_cls_loss.item()
+            count = args.world_size
+        else:
+            loss_val = loss.item()
+            loc_loss_val = loc_loss.item()
+            cls_loss_val = cls_loss.item()
+            count = 1.
 
         if args.local_rank == 1:
-            train_loss.update(val=reduced_loss.item(), n=1./args.world_size)
-            train_loc_loss.update(val=reduced_loc_loss.item(), n=1./args.world_size)
-            train_cls_loss.update(val=reduced_cls_loss.item(), n=1./args.world_size)
-            # gt_segmaps_classid = segmaps.argmax(1)
-            # train_iou.add(pred_segmaps.detach(), gt_segmaps_classid.detach())
-            train_pbar.update(1)
+            train_loss.update(val=loss_val, n=1./count)
+            train_loc_loss.update(val=loc_loss_val, n=1./count)
+            train_cls_loss.update(val=cls_loss_val, n=1./count)
+        # gt_segmaps_classid = segmaps.argmax(1)
+        # train_iou.add(pred_segmaps.detach(), gt_segmaps_classid.detach())
+        train_pbar.update(1)
 
     if args.local_rank == 1:
 
