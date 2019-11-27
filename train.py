@@ -95,10 +95,6 @@ trainloader, valloader, train_sampler = xview_train_loader_factory("segmentation
 if args.distributed:
     semseg_model = convert_syncbn_model(semseg_model)
 
-# For starters, train a constant LR Model
-# optimizer = optim.SGD(semseg_model.parameters(),
-#                       lr=config["hyperparameters"]["MAX_LR"],
-#                       momentum=config["hyperparameters"]["MOMENTUM"])
 if config["hyperparameters"]["OPTIMIZER"] == "ADAMW":
     optimizer = optim.AdamW(semseg_model.parameters(),
                             lr=config["hyperparameters"]["INITIAL_LR"],
