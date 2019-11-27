@@ -75,12 +75,15 @@ def input_tensor_to_pil_img(inp_tensor):
 
     return Image.fromarray(img)
 
+def _tensor_to_pil(input_tensor, apply_color=True):
+    r = Image.fromarray(input_tensor)
+    if apply_color:
+        r.putpalette(colors)
+    return r
+
 
 def segmap_tensor_to_pil_img(segmap_tensor):
-    r = Image.fromarray(torch.max(segmap_tensor, 0).indices.byte().cpu().numpy())
-    r.putpalette(colors)
-
-    return r
+    return _tensor_to_pil(torch.max(segmap_tensor, 0).indices.byte().cpu().numpy())
 
 
 def logits_to_probs(segmap_logits):
@@ -99,11 +102,18 @@ def postprocess_segmap_tensor_to_pil_img(segmap_tensor, apply_color=True, binari
     processed_segmap = foreground * damage_class
     if binarize:
         processed_segmap[processed_segmap > 1] = 1
-    r = Image.fromarray(processed_segmap.astype(np.uint8))
-    if apply_color:
-        r.putpalette(colors)
-    
-    return r
+    return _tensor_to_pil(processed_segmap.astype(np.uint8), apply_color)
+
+
+def postprocess_combined_predictions(pre_pred_tensor, post_pred_tensor, apply_color=True, threshold=0.5):
+    pre_segmap = pre_pred_tensor.cpu().numpy()
+    post_segmap = post_pred_tensor.cpu().numpy()
+    background = pre_segmap[0, :, :] > threshold
+    foreground = ~background
+    damage_class = np.argmax(post_segmap[1:, :, :], axis=0)
+    damage_class += 1
+    processed_post_predictions = foreground * damage_class
+    return _tensor_to_pil(processed_post_predictions.astype(np.uint8), apply_color)
 
 
 def EMSG(errtype="ERROR"):

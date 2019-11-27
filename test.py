@@ -17,7 +17,7 @@ import torch
 
 from dataset import xview_test_loader_factory
 from utils import input_tensor_to_pil_img
-from utils import postprocess_segmap_tensor_to_pil_img
+from utils import postprocess_segmap_tensor_to_pil_img, postprocess_combined_predictions
 from utils import reconstruct_from_tiles
 
 # Configuration
@@ -83,7 +83,7 @@ for idx, (pretiles, posttiles) in enumerate(test_loader):
 
     r = postprocess_segmap_tensor_to_pil_img(pre_pred, apply_color=False, binarize=True)
     r.save(leaderboard_results_path + "test_localization_" + num_id + "_prediction.png")
-    r = postprocess_segmap_tensor_to_pil_img(post_pred, apply_color=False)
+    r = postprocess_combined_predictions(pre_pred, post_pred, apply_color=False)
     r.save(leaderboard_results_path + "test_damage_" + num_id + "_prediction.png")
 
     # Save visual results for examination
@@ -91,6 +91,8 @@ for idx, (pretiles, posttiles) in enumerate(test_loader):
     r.save(visual_results_path + num_id + "_pre_pred.png")
     r = postprocess_segmap_tensor_to_pil_img(post_pred)
     r.save(visual_results_path + num_id + "_post_pred.png")
+    r = postprocess_combined_predictions(pre_pred, post_pred)
+    r.save(visual_results_path + num_id + "_combo_pred.png")
 
     # Save input images as well for visual reference
     pre_img = reconstruct_from_tiles(pretiles[0], 3, int(config["dataloader"]["TILE_SIZE"]))
