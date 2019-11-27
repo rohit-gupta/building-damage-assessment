@@ -29,7 +29,7 @@ config_file = config_name + ".ini"
 config = configparser.ConfigParser()
 config.read(config_file)
 
-BEST_EPOCH = 98
+BEST_EPOCH = config["paths"]["BEST_MODEL"]
 
 if torch.cuda.is_available():
     device = "cuda"
