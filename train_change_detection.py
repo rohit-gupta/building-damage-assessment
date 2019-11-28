@@ -16,6 +16,8 @@ if config_name == "default_lb":
     BEST_EPOCH = 169
 elif config_name == "locaware_local_ssd":
     BEST_EPOCH = -1  # TODO
+elif config_name == "locaware_local_full_finetune":
+    BEST_EPOCH = 51  # TODO
 if torch.cuda.is_available():
     gpu0 = torch.device('cuda:0')
     gpu1 = torch.device('cuda:1')
