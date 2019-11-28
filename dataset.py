@@ -59,6 +59,7 @@ class xviewDataset(Dataset):
     '''
 
     def __init__(self, data, mode='tiles', load_segmaps=False, actual_size=1024, crop_size=256, tile_size=256,
+                 ls_kernel_size=1,
                  shuffle=True,
                  flips=False, scale_jitter=False, color_jitter=False,
                  erase=False, noise=False, distort=False):
@@ -74,7 +75,7 @@ class xviewDataset(Dataset):
         self.erase = erase
         self.noise = noise
         self.distort = distort
-        self.ls_size = spatial_label_smoothing  # 1 = No Smoothing
+        self.ls_size = ls_kernel_size  # 1 = No Smoothing
 
         data_keys = list(data.keys())
         if shuffle:
@@ -301,7 +302,7 @@ def xview_train_loader_factory(mode, xview_root, data_version, use_tier3,
 
     train_set = xviewDataset(train_data, mode=train_mode, load_segmaps=True,
                              actual_size=1024, crop_size=train_crop_size, tile_size=train_tile_size,
-                             shuffle=True,
+                             ls_kernel_size=1, shuffle=True,
                              flips=True, scale_jitter=True, color_jitter=True,
                              erase=False, noise=False, distort=False)
 
