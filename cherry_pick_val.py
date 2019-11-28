@@ -21,13 +21,11 @@ from utils import postprocess_segmap_tensor_to_pil_img, postprocess_combined_pre
 from utils import reconstruct_from_tiles
 
 # Configuration
-import configparser
+from config_parser import read_config
 import os
 
 config_name = os.environ["XVIEW_CONFIG"]
-config_file = config_name + ".ini"
-config = configparser.ConfigParser()
-config.read(config_file)
+config = read_config(config_name)
 
 BEST_EPOCH = int(config["paths"]["BEST_MODEL"])
 

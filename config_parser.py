@@ -34,8 +34,7 @@ type_map = {
         "CROP_SIZE": int,
         "TILE_SIZE": int,
         "THREADS": int,
-        "BATCH_SIZE": int,
-        "NUM_GPUS": int
+        "BATCH_SIZE": int
     },
     "paths": {
         "XVIEW_ROOT": str,
