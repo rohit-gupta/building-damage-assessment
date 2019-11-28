@@ -121,11 +121,13 @@ if "finetune" in config_name:
 # print("Entering Training Loop")
 if args.local_rank == 1:
     train_loss = AverageMeter("train_loss")
-    train_loc_loss = AverageMeter("train_loc_loss")
-    train_cls_loss = AverageMeter("train_cls_loss")
+    if config["hyperparameters"]["LOSS"] == "locaware":
+        train_loc_loss = AverageMeter("train_loc_loss")
+        train_cls_loss = AverageMeter("train_cls_loss")
     val_loss = AverageMeter("val_loss")
-    val_loc_loss = AverageMeter("val_loc_loss")
-    val_cls_loss = AverageMeter("val_cls_loss")
+    if config["hyperparameters"]["LOSS"] == "locaware":
+        val_loc_loss = AverageMeter("val_loc_loss")
+        val_cls_loss = AverageMeter("val_cls_loss")
     # iou_mean = AverageMeter("mIoU")
     # iou_localization = AverageMeter("localization_iou")
     # train_iou = IoU(5)
@@ -133,14 +135,14 @@ if args.local_rank == 1:
     val_post_iou = IoU(5)
 
     train_loss_log = MetricLog("train_loss")
-    train_loc_loss_log = MetricLog("train_loc_loss")
-    train_cls_loss_log = MetricLog("train_cls_loss")
+    val_loss_log = MetricLog("val_loss")
+    if config["hyperparameters"]["LOSS"] == "locaware":
+        train_loc_loss_log = MetricLog("train_loc_loss")
+        train_cls_loss_log = MetricLog("train_cls_loss")
+        val_loc_loss_log = MetricLog("val_loc_loss")
+        val_cls_loss_log = MetricLog("val_cls_loss")
     # train_mIoU_log = MetricLog("train_mIoU")
     # train_localization_IoU_log = MetricLog("train_localization_IoU")
-
-    val_loss_log = MetricLog("val_loss")
-    val_loc_loss_log = MetricLog("val_loc_loss")
-    val_cls_loss_log = MetricLog("val_cls_loss")
     val_mIoU_log = MetricLog("val_mIoU")
     val_localization_IoU_log = MetricLog("val_localization_IoU")
 
@@ -154,11 +156,12 @@ for epoch in range(int(config["hyperparameters"]["NUM_EPOCHS"])):
     if args.local_rank == 1:
         # Reset Loss & metric tracking at beginning of epoch
         train_loss.reset()
-        train_loc_loss.reset()
-        train_cls_loss.reset()
         val_loss.reset()
-        val_loc_loss.reset()
-        val_cls_loss.reset()
+        if config["hyperparameters"]["LOSS"] == "locaware":
+            train_loc_loss.reset()
+            train_cls_loss.reset()
+            val_loc_loss.reset()
+            val_cls_loss.reset()
         # train_iou.reset()
         val_pre_iou.reset()
         val_post_iou.reset()
@@ -203,22 +206,25 @@ for epoch in range(int(config["hyperparameters"]["NUM_EPOCHS"])):
 
         if args.distributed:
             reduced_loss = reduce_tensor(loss, args.world_size)
-            reduced_loc_loss = reduce_tensor(loc_loss, args.world_size)
-            reduced_cls_loss = reduce_tensor(cls_loss, args.world_size)
             loss_val = reduced_loss.item()
-            loc_loss_val = reduced_loc_loss.item()
-            cls_loss_val = reduced_cls_loss.item()
+            if config["hyperparameters"]["LOSS"] == "locaware":
+                reduced_loc_loss = reduce_tensor(loc_loss, args.world_size)
+                reduced_cls_loss = reduce_tensor(cls_loss, args.world_size)
+                loc_loss_val = reduced_loc_loss.item()
+                cls_loss_val = reduced_cls_loss.item()
             count = args.world_size
         else:
             loss_val = loss.item()
-            loc_loss_val = loc_loss.item()
-            cls_loss_val = cls_loss.item()
+            if config["hyperparameters"]["LOSS"] == "locaware":
+                loc_loss_val = loc_loss.item()
+                cls_loss_val = cls_loss.item()
             count = 1.
 
         if args.local_rank == 1:
             train_loss.update(val=loss_val, n=1./count)
-            train_loc_loss.update(val=loc_loss_val, n=1./count)
-            train_cls_loss.update(val=cls_loss_val, n=1./count)
+            if config["hyperparameters"]["LOSS"] == "locaware":
+                train_loc_loss.update(val=loc_loss_val, n=1./count)
+                train_cls_loss.update(val=cls_loss_val, n=1./count)
             train_pbar.update(1)
         # gt_segmaps_classid = segmaps.argmax(1)
         # train_iou.add(pred_segmaps.detach(), gt_segmaps_classid.detach())
@@ -232,8 +238,9 @@ for epoch in range(int(config["hyperparameters"]["NUM_EPOCHS"])):
 
         # Log train metrics
         train_loss_log.update(train_loss.value())
-        train_loc_loss_log.update(train_loc_loss.value())
-        train_cls_loss_log.update(train_cls_loss.value())
+        if config["hyperparameters"]["LOSS"] == "locaware":
+            train_loc_loss_log.update(train_loc_loss.value())
+            train_cls_loss_log.update(train_cls_loss.value())
         # train_mIoU_log.update(train_miou)
         # train_localization_IoU_log.update(train_localization_iou)
 
@@ -259,21 +266,27 @@ for epoch in range(int(config["hyperparameters"]["NUM_EPOCHS"])):
                 postoutputs = semseg_model(posttiles[0])
                 post_preds = postoutputs['out']
 
-                # Compute metrics (for now we always log locaware val loss)
-                val_pre_loc_loss,\
-                val_pre_cls_loss,\
-                val_pre_loss_val = localization_aware_cross_entropy(prelabels[0], pre_preds,
-                                                                    config["hyperparameters"]["LOCALIZATION_WEIGHT"],
-                                                                    config["hyperparameters"]["CLASSIFICATION_WEIGHT"])
-                val_post_loc_loss,\
-                val_post_cls_loss,\
-                val_post_loss_val = localization_aware_cross_entropy(postlabels[0], post_preds,
-                                                                     config["hyperparameters"]["LOCALIZATION_WEIGHT"],
-                                                                     config["hyperparameters"]["CLASSIFICATION_WEIGHT"])
+                # Compute metrics
+                if config["hyperparameters"]["LOSS"] == "locaware":
+                    val_pre_loc_loss,\
+                    val_pre_cls_loss,\
+                    val_pre_loss_val = localization_aware_cross_entropy(prelabels[0], pre_preds,
+                                                                        config["hyperparameters"]["LOCALIZATION_WEIGHT"],
+                                                                        config["hyperparameters"]["CLASSIFICATION_WEIGHT"])
+                    val_post_loc_loss,\
+                    val_post_cls_loss,\
+                    val_post_loss_val = localization_aware_cross_entropy(postlabels[0], post_preds,
+                                                                         config["hyperparameters"]["LOCALIZATION_WEIGHT"],
+                                                                         config["hyperparameters"]["CLASSIFICATION_WEIGHT"])
+                elif config["hyperparameters"]["LOSS"] == "crossentropy":
+                    val_pre_loss_val = cross_entropy(prelabels[0], pre_preds)
+                    val_post_loss_val = cross_entropy(postlabels[0], post_preds)
+
                 val_loss_val = (val_pre_loss_val + val_post_loss_val)/2
                 val_loss.update(val=val_loss_val.item(), n=1)
-                val_loc_loss.update(val=val_pre_loc_loss.item(), n=1)
-                val_cls_loss.update(val=val_post_cls_loss.item(), n=1)
+                if config["hyperparameters"]["LOSS"] == "locaware":
+                    val_loc_loss.update(val=val_pre_loc_loss.item(), n=1)
+                    val_cls_loss.update(val=val_post_cls_loss.item(), n=1)
 
                 pre_gt_classid = prelabels[0].argmax(1)
                 post_gt_classid = postlabels[0].argmax(1)
@@ -317,8 +330,9 @@ for epoch in range(int(config["hyperparameters"]["NUM_EPOCHS"])):
         val_miou = post_miou
 
         val_loss_log.update(val_loss.value())
-        val_loc_loss_log.update(val_loc_loss.value())
-        val_cls_loss_log.update(val_cls_loss.value())
+        if config["hyperparameters"]["LOSS"] == "locaware":
+            val_loc_loss_log.update(val_loc_loss.value())
+            val_cls_loss_log.update(val_cls_loss.value())
         val_localization_IoU_log.update(val_localization_iou)
         val_mIoU_log.update(val_miou)
 
@@ -329,4 +343,5 @@ for epoch in range(int(config["hyperparameters"]["NUM_EPOCHS"])):
             pathlib.Path(models_folder).mkdir(parents=True, exist_ok=True)
             torch.save(semseg_model.state_dict(), models_folder + str(epoch) + ".pth")
     torch.cuda.synchronize()
+
 

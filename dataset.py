@@ -59,9 +59,9 @@ class xviewDataset(Dataset):
     '''
 
     def __init__(self, data, mode='tiles', load_segmaps=False, actual_size=1024, crop_size=256, tile_size=256,
+                 shuffle=True,
                  flips=False, scale_jitter=False, color_jitter=False,
-                 erase=False, noise=False, distort=False,
-                 spatial_label_smoothing=1):
+                 erase=False, noise=False, distort=False):
         self.data = data
         self.mode = mode
         self.load_segmaps = load_segmaps
@@ -77,7 +77,7 @@ class xviewDataset(Dataset):
         self.ls_size = spatial_label_smoothing  # 1 = No Smoothing
 
         data_keys = list(data.keys())
-        if mode == "train":
+        if shuffle:
             self.index = random.sample(data_keys, len(data_keys))
         else:
             self.index = sorted(data_keys)
@@ -301,11 +301,13 @@ def xview_train_loader_factory(mode, xview_root, data_version, use_tier3,
 
     train_set = xviewDataset(train_data, mode=train_mode, load_segmaps=True,
                              actual_size=1024, crop_size=train_crop_size, tile_size=train_tile_size,
+                             shuffle=True,
                              flips=True, scale_jitter=True, color_jitter=True,
                              erase=False, noise=False, distort=False)
 
     val_set = xviewDataset(val_data, mode="tiles", load_segmaps=True,
-                           actual_size=1024, crop_size=val_crop_size, tile_size=val_tile_size)
+                           actual_size=1024, crop_size=val_crop_size, tile_size=val_tile_size,
+                           shuffle=False)
 
     train_sampler = None
     val_sampler = None
@@ -332,7 +334,7 @@ def xview_test_loader_factory(xview_root, tile_size):
     _, _, test_data = load_xview_metadata(xview_root, "v2/", False)
 
     test_set = xviewDataset(test_data, mode="tiles", load_segmaps=False, 
-                            actual_size=1024, crop_size=1024, tile_size=tile_size)
+                            actual_size=1024, crop_size=1024, tile_size=tile_size, shuffle=False)
     test_loader = DataLoader(test_set, batch_size=1, shuffle=False,
                              collate_fn=test_collate_fn, num_workers=1, pin_memory=True)
 
