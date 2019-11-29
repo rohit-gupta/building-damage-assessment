@@ -28,8 +28,8 @@ semseg_model = deeplabv3_resnet50(pretrained=False,
                                   num_classes=5,
                                   aux_loss=None)
 
-changenet = ChangeDetectionNet(classes=5, num_layers=3, feature_channels=15,
-                               kernel_scales=[3, 11, 19], dilation_scales=[2, 4, 8],
+changenet = ChangeDetectionNet(classes=5, num_layers=1, feature_channels=15,
+                               kernel_scales=[1, 5, 11], dilation_scales=[1, 8, 16],
                                use_bn=True, padding_type="replication")
 
 semseg_model = semseg_model.to(gpu0)
@@ -50,3 +50,13 @@ print("Beginning Test Inference using model from Epoch #" + str(BEST_EPOCH) + ":
 models_folder = str(config["paths"]["MODELS"]) + config_name + "/"
 semseg_model.load_state_dict(torch.load(models_folder + str(BEST_EPOCH) + ".pth"))
 semseg_model.eval()
+
+
+# Psuedo code
+# augment then tile # TODO
+for epoch in range(int(config["hyperparameters"]["NUM_EPOCHS"])):
+    for idx, (pretiles, posttiles, prelabels, postlabels) in enumerate(trainloader):
+        with torch.set_grad_enabled(False):
+            semseg_model(pretiles)
+            semseg_model(posttiles)
+
