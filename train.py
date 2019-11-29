@@ -299,7 +299,14 @@ for epoch in range(int(config["hyperparameters"]["NUM_EPOCHS"])):
             pre_pred = reconstruct_from_tiles(pre_preds, 5, config["dataloader"]["TILE_SIZE"])
             post_pred = reconstruct_from_tiles(post_preds, 5, config["dataloader"]["TILE_SIZE"])
 
-            r = postprocess_segmap_tensor_to_pil_img(logits_to_probs(pre_pred), binarize=True)
+            if config["hyperparameters"]["LOSS"] == "locaware":
+                pre_prob = logits_to_probs(pre_pred)
+                post_prob = logits_to_probs(post_pred)
+            elif config["hyperparameters"]["LOSS"] == "crossentropy":
+                pre_prob = torch.nn.functional.softmax(pre_pred, dim=0)
+                post_prob = torch.nn.functional.softmax(post_pred, dim=0)
+
+            r = postprocess_segmap_tensor_to_pil_img(pre_prob, binarize=True)
             r.save(save_path + "pre_pred_epoch_" + str(epoch) + ".png")
             r = postprocess_segmap_tensor_to_pil_img(logits_to_probs(post_pred))
             r.save(save_path + "post_pred_epoch_" + str(epoch) + ".png")
