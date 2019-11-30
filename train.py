@@ -34,6 +34,8 @@ from utils import postprocess_segmap_tensor_to_pil_img, logits_to_probs
 
 from utils import reduce_tensor
 
+from utils import clean_distributed_state_dict
+
 from losses import cross_entropy, localization_aware_cross_entropy
 
 
@@ -87,6 +89,13 @@ trainloader, valloader, train_sampler = xview_train_loader_factory("segmentation
                                                                    config["dataloader"]["THREADS"],
                                                                    args.distributed)
 
+if "finetune" in config_name:
+    model_checkpoint = config["paths"]["MODELS"] + config["paths"]["BEST_MODEL"]
+    state_dict = torch.load(model_checkpoint)
+    # Clean distributed state dict is idempotent
+    semseg_model.load_state_dict(clean_distributed_state_dict(state_dict))
+    print("Loading weights from", model_checkpoint)
+
 if args.distributed:
     semseg_model = convert_syncbn_model(semseg_model)
 
@@ -112,11 +121,6 @@ if config["misc"]["APEX_OPT_LEVEL"] != "None":
 
 if args.distributed:
     semseg_model = DDP(semseg_model)
-
-if "finetune" in config_name:
-    model_checkpoint = config["paths"]["MODELS"] + config["paths"]["BEST_MODEL"]
-    semseg_model.load_state_dict(torch.load(model_checkpoint))
-    print("Loading weights from", model_checkpoint)
 
 # print("Entering Training Loop")
 if args.local_rank == 1:

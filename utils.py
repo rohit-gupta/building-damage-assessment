@@ -23,7 +23,7 @@ from PIL import Image
 import glob
 import random
 import inspect
-
+from collections import OrderedDict
 colors = [[  0,   0, 200], # Blue:   Background
           [  0, 200,   0], # Green:  No Damage
           [250, 125,   0], # Orange: Minor Damage
@@ -127,7 +127,16 @@ def EMSG(errtype="ERROR"):
     previous_frame = inspect.currentframe().f_back
     _, _, fname, _, _ = inspect.getframeinfo(previous_frame)
 
-    return errtype + " in function " + fname 
+    return errtype + " in function " + fname
+
+
+def clean_distributed_state_dict(distributed_state_dict):
+    new_state_dict = OrderedDict()
+    for k, v in distributed_state_dict.items():
+        name = k.replace("module.", "")  # remove `module.`
+        new_state_dict[name] = v
+
+    return new_state_dict
 
 
 def read_labels_file(labels_file):
