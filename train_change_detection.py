@@ -134,6 +134,6 @@ for epoch in range(int(config["hyperparameters"]["NUM_EPOCHS"])):
             optimizer.step()
 
         #TODO save val samples
-        
+
 
 
