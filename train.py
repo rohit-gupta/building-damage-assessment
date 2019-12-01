@@ -30,7 +30,7 @@ from dataset import xview_train_loader_factory
 from utils import input_tensor_to_pil_img
 from utils import segmap_tensor_to_pil_img
 from utils import reconstruct_from_tiles
-from utils import postprocess_segmap_tensor_to_pil_img, logits_to_probs
+from utils import postprocess_segmap_tensor_to_pil_img, logits_to_probs, postprocess_combined_predictions
 
 from utils import reduce_tensor
 
@@ -312,8 +312,10 @@ for epoch in range(int(config["hyperparameters"]["NUM_EPOCHS"])):
 
             r = postprocess_segmap_tensor_to_pil_img(pre_prob, binarize=True)
             r.save(save_path + "pre_pred_epoch_" + str(epoch) + ".png")
-            r = postprocess_segmap_tensor_to_pil_img(logits_to_probs(post_pred))
+            r = postprocess_segmap_tensor_to_pil_img(post_prob)
             r.save(save_path + "post_pred_epoch_" + str(epoch) + ".png")
+            r = postprocess_combined_predictions(pre_prob, post_prob)
+            r.save(save_path + "combined_pred_epoch_" + str(epoch) + ".png")
 
             # Groundtruth only needs to be saved once
             if epoch == 0:

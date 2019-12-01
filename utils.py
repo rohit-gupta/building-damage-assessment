@@ -35,7 +35,6 @@ colors = np.array(colors).astype(np.uint8)
 
 
 H, W = 1024, 1024
-ACTUAL_SIZE = 1024
 
 
 def convert_color_segmap_to_int(segmap):
@@ -49,14 +48,13 @@ def convert_color_segmap_to_int(segmap):
 def open_image_as_nparray(img_path, dtype):
     return np.array(Image.open(img_path), dtype=dtype)
 
-def reconstruct_from_tiles(tiles, CHANNELS, CROP_SIZE):
-    num_tiles = ACTUAL_SIZE // CROP_SIZE
-
+def reconstruct_from_tiles(tiles, CHANNELS, TILE_SIZE, ACTUAL_SIZE = 1024):
+    num_tiles = ACTUAL_SIZE // TILE_SIZE
     reconstructed = torch.zeros([CHANNELS, ACTUAL_SIZE, ACTUAL_SIZE], dtype=torch.float32)
     for x in range(num_tiles):
         for y in range(num_tiles):
-            x0, x1 = x * CROP_SIZE, (x + 1) * CROP_SIZE
-            y0, y1 = y * CROP_SIZE, (y + 1) * CROP_SIZE
+            x0, x1 = x * TILE_SIZE, (x + 1) * TILE_SIZE
+            y0, y1 = y * TILE_SIZE, (y + 1) * TILE_SIZE
             reconstructed[:, x0:x1, y0:y1] = tiles[x * num_tiles + y]
 
     return reconstructed
