@@ -56,7 +56,7 @@ for idx, sample in enumerate(samples):
         # Read Results from DeepLab
         pre_pred_path = sample + "pre_pred_epoch_" + str(epoch)
         post_pred_path = sample + "post_pred_epoch_" + str(epoch)
-        combined_pred_path = sample + "post_pred_epoch_" + str(epoch)
+        combined_pred_path = sample + "combined_pred_epoch_" + str(epoch)
         if os.path.isfile(combined_pred_path + ".png"):
             post_pred_path = combined_pred_path
 
