@@ -19,6 +19,7 @@ from dataset import xview_test_loader_factory
 from utils import input_tensor_to_pil_img
 from utils import postprocess_segmap_tensor_to_pil_img, postprocess_combined_predictions
 from utils import reconstruct_from_tiles
+from utils import clean_distributed_state_dict
 
 # Configuration
 import configparser
@@ -47,8 +48,9 @@ test_loader = xview_test_loader_factory(config["paths"]["XVIEW_ROOT"],
 
 print("Beginning Test Inference using model from Epoch #" + str(BEST_EPOCH) + ":")
 models_folder = str(config["paths"]["MODELS"]) + config_name + "/"
-semseg_model.load_state_dict(torch.load(models_folder + str(BEST_EPOCH) + ".pth"))
-semseg_model.eval()
+state_dict = clean_distributed_state_dict(torch.load(models_folder + str(BEST_EPOCH) + ".pth"))
+semseg_model.load_state_dict()
+semseg_model.eval(state_dict)
 
 test_pbar = tqdm.tqdm(total=len(test_loader))
 # Validation Phase of epoch

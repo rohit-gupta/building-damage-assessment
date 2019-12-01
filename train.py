@@ -30,9 +30,11 @@ from dataset import xview_train_loader_factory
 from utils import input_tensor_to_pil_img
 from utils import segmap_tensor_to_pil_img
 from utils import reconstruct_from_tiles
-from utils import postprocess_segmap_tensor_to_pil_img, logits_to_probs
+from utils import postprocess_segmap_tensor_to_pil_img, logits_to_probs, postprocess_combined_predictions
 
 from utils import reduce_tensor
+
+from utils import clean_distributed_state_dict
 
 from losses import cross_entropy, localization_aware_cross_entropy
 
@@ -87,6 +89,13 @@ trainloader, valloader, train_sampler = xview_train_loader_factory("segmentation
                                                                    config["dataloader"]["THREADS"],
                                                                    args.distributed)
 
+if "finetune" in config_name:
+    model_checkpoint = config["paths"]["MODELS"] + config["paths"]["BEST_MODEL"]
+    state_dict = torch.load(model_checkpoint)
+    # Clean distributed state dict is idempotent
+    semseg_model.load_state_dict(clean_distributed_state_dict(state_dict))
+    print("Loading weights from", model_checkpoint)
+
 if args.distributed:
     semseg_model = convert_syncbn_model(semseg_model)
 
@@ -112,11 +121,6 @@ if config["misc"]["APEX_OPT_LEVEL"] != "None":
 
 if args.distributed:
     semseg_model = DDP(semseg_model)
-
-if "finetune" in config_name:
-    model_checkpoint = config["paths"]["MODELS"] + config["paths"]["BEST_MODEL"]
-    semseg_model.load_state_dict(torch.load(model_checkpoint))
-    print("Loading weights from", model_checkpoint)
 
 # print("Entering Training Loop")
 if args.local_rank == 1:
@@ -308,8 +312,10 @@ for epoch in range(int(config["hyperparameters"]["NUM_EPOCHS"])):
 
             r = postprocess_segmap_tensor_to_pil_img(pre_prob, binarize=True)
             r.save(save_path + "pre_pred_epoch_" + str(epoch) + ".png")
-            r = postprocess_segmap_tensor_to_pil_img(logits_to_probs(post_pred))
+            r = postprocess_segmap_tensor_to_pil_img(post_prob)
             r.save(save_path + "post_pred_epoch_" + str(epoch) + ".png")
+            r = postprocess_combined_predictions(pre_prob, post_prob)
+            r.save(save_path + "combined_pred_epoch_" + str(epoch) + ".png")
 
             # Groundtruth only needs to be saved once
             if epoch == 0:

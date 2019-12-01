@@ -13,6 +13,10 @@ import configparser
 def str2bool(v):
   return v.lower() in ("yes", "true", "t", "1")
 
+
+def str2intarr(v):
+  return [int(x) for x in v.split(" ")]
+
 type_map = {
     "hyperparameters": {
         "LOSS": str,
@@ -49,12 +53,32 @@ type_map = {
 }
 
 
-def read_config(config_name):
+change_type_map = {
+    "change": {
+        "SEG_MODEL" : str,
+        "POST_CROP": int,
+        "KERNEL_SIZES": str2intarr,
+        "KERNEL_DILATIONS": str2intarr,
+        "NUM_LAYERS": int
+    }
+}
+
+
+def read_config(config_name, config_type="segmentation"):
     config_file = config_name + ".ini"
     config = configparser.ConfigParser()
     config.optionxform = lambda option: option
     config.read(config_file)
-    return parse_config(config._sections, type_map)
+
+    if config_type == "segmentation":
+        return parse_config(config._sections, type_map)
+    elif config_type == "change":
+        full_type_map = {}
+        full_type_map.update(type_map)
+        full_type_map.update(change_type_map)
+        return parse_config(config._sections, full_type_map)
+    else:
+        raise TypeError("config_type must be either 'segmentation' or 'change'")
 
 
 def parse_config(config, template):
