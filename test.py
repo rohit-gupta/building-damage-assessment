@@ -48,7 +48,9 @@ test_loader = xview_test_loader_factory(config["paths"]["XVIEW_ROOT"],
 
 print("Beginning Test Inference using model from Epoch #" + str(BEST_EPOCH) + ":")
 models_folder = str(config["paths"]["MODELS"]) + config_name + "/"
-state_dict = clean_distributed_state_dict(torch.load(models_folder + str(BEST_EPOCH) + ".pth"))
+
+state_dict = torch.load(models_folder + str(BEST_EPOCH) + ".pth", map_location=torch.device("cuda:0")) # Load on GPU 0
+state_dict = clean_distributed_state_dict(state_dict)
 semseg_model.load_state_dict(state_dict)
 semseg_model.eval()
 

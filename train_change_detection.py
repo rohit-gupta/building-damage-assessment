@@ -1,6 +1,7 @@
 
 import os
 import sys
+import pathlib
 
 import torch
 from torchvision.models.segmentation import deeplabv3_resnet50
@@ -14,7 +15,7 @@ from utils import clean_distributed_state_dict
 from utils import reconstruct_from_tiles
 from functools import partial
 from losses import cross_entropy, localization_aware_cross_entropy
-
+from train_utils import save_model
 
 config_name = os.environ["XVIEW_CONFIG"]
 config = read_config(config_name, config_type="change")
@@ -79,6 +80,10 @@ NUM_TILES *= NUM_TILES
 semseg_model.eval()
 
 
+MODELS_FOLDER = config["paths"]["MODELS"] + config_name + "/"
+pathlib.Path(MODELS_FOLDER).mkdir(parents=True, exist_ok=True)
+
+
 for epoch in range(int(config["hyperparameters"]["NUM_EPOCHS"])):
     for idx, (pretiles, posttiles, prelabels, postlabels) in enumerate(trainloader):
         with torch.set_grad_enabled(False):
@@ -134,6 +139,9 @@ for epoch in range(int(config["hyperparameters"]["NUM_EPOCHS"])):
             optimizer.step()
 
         #TODO save val samples
+        if epoch % config["misc"]["SAVE_FREQ"] == 0:
+            save_model(changenet.state_dict(), MODELS_FOLDER, epoch)
+
 
 
 
