@@ -17,7 +17,7 @@ import torch
 
 from dataset import xview_test_loader_factory
 from utils import input_tensor_to_pil_img
-from utils import postprocess_segmap_tensor_to_pil_img, postprocess_combined_predictions
+from utils import logits_to_probs, postprocess_segmap_tensor_to_pil_img, postprocess_combined_predictions
 from utils import reconstruct_from_tiles
 from utils import clean_distributed_state_dict
 
@@ -48,7 +48,9 @@ test_loader = xview_test_loader_factory(config["paths"]["XVIEW_ROOT"],
 
 print("Beginning Test Inference using model from Epoch #" + str(BEST_EPOCH) + ":")
 models_folder = str(config["paths"]["MODELS"]) + config_name + "/"
-state_dict = clean_distributed_state_dict(torch.load(models_folder + str(BEST_EPOCH) + ".pth"))
+
+state_dict = torch.load(models_folder + str(BEST_EPOCH) + ".pth", map_location=torch.device("cuda:0")) # Load on GPU 0
+state_dict = clean_distributed_state_dict(state_dict)
 semseg_model.load_state_dict(state_dict)
 semseg_model.eval()
 
@@ -64,10 +66,15 @@ for idx, (pretiles, posttiles) in enumerate(test_loader):
     with torch.set_grad_enabled(False):
         preoutputs = semseg_model(pretiles[0])
         pre_preds = preoutputs['out']
-        pre_preds = torch.nn.functional.softmax(pre_preds, dim=1)
         postoutputs = semseg_model(posttiles[0])
         post_preds = postoutputs['out']
-        post_preds = torch.nn.functional.softmax(post_preds, dim=1)
+
+    if config["hyperparameters"]["LOSS"] == "crossentropy":
+        pre_probs = torch.nn.functional.softmax(pre_preds, dim=1)
+        post_probs = torch.nn.functional.softmax(post_preds, dim=1)
+    elif config["hyperparameters"]["LOSS"] == "locaware":
+        pre_probs = logits_to_probs(pre_preds)
+        post_probs = logits_to_probs(post_preds)
 
     # Write to disk for scoring
     save_path = "test_results/" + config_name + "/"
@@ -79,8 +86,8 @@ for idx, (pretiles, posttiles) in enumerate(test_loader):
     num_id = str(idx)
     num_id = "".join(["0"] * (5 - len(num_id)) + list(num_id))
 
-    pre_pred = reconstruct_from_tiles(pre_preds, 5, int(config["dataloader"]["TILE_SIZE"]))
-    post_pred = reconstruct_from_tiles(post_preds, 5, int(config["dataloader"]["TILE_SIZE"]))
+    pre_pred = reconstruct_from_tiles(pre_probs, 5, int(config["dataloader"]["TILE_SIZE"]))
+    post_pred = reconstruct_from_tiles(post_probs, 5, int(config["dataloader"]["TILE_SIZE"]))
 
     # Save results for leaderboard
 
