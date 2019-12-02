@@ -69,12 +69,15 @@ for idx, (pretiles, posttiles) in enumerate(test_loader):
         postoutputs = semseg_model(posttiles[0])
         post_preds = postoutputs['out']
 
+    pre_pred = reconstruct_from_tiles(pre_preds, 5, int(config["dataloader"]["TILE_SIZE"]))
+    post_pred = reconstruct_from_tiles(post_preds, 5, int(config["dataloader"]["TILE_SIZE"]))
+
     if config["hyperparameters"]["LOSS"] == "crossentropy":
-        pre_probs = torch.nn.functional.softmax(pre_preds, dim=1)
-        post_probs = torch.nn.functional.softmax(post_preds, dim=1)
+        pre_probs = torch.nn.functional.softmax(pre_pred, dim=1)
+        post_probs = torch.nn.functional.softmax(post_pred, dim=1)
     elif config["hyperparameters"]["LOSS"] == "locaware":
-        pre_probs = logits_to_probs(pre_preds)
-        post_probs = logits_to_probs(post_preds)
+        pre_probs = logits_to_probs(pre_pred)
+        post_probs = logits_to_probs(post_pred)
 
     # Write to disk for scoring
     save_path = "test_results/" + config_name + "/"
@@ -86,22 +89,19 @@ for idx, (pretiles, posttiles) in enumerate(test_loader):
     num_id = str(idx)
     num_id = "".join(["0"] * (5 - len(num_id)) + list(num_id))
 
-    pre_pred = reconstruct_from_tiles(pre_probs, 5, int(config["dataloader"]["TILE_SIZE"]))
-    post_pred = reconstruct_from_tiles(post_probs, 5, int(config["dataloader"]["TILE_SIZE"]))
-
     # Save results for leaderboard
 
-    r = postprocess_segmap_tensor_to_pil_img(pre_pred, apply_color=False, binarize=True)
+    r = postprocess_segmap_tensor_to_pil_img(pre_probs, apply_color=False, binarize=True)
     r.save(leaderboard_results_path + "test_localization_" + num_id + "_prediction.png")
-    r = postprocess_combined_predictions(pre_pred, post_pred, apply_color=False)
+    r = postprocess_combined_predictions(pre_probs, post_probs, apply_color=False)
     r.save(leaderboard_results_path + "test_damage_" + num_id + "_prediction.png")
 
     # Save visual results for examination
-    r = postprocess_segmap_tensor_to_pil_img(pre_pred, binarize=True)
+    r = postprocess_segmap_tensor_to_pil_img(pre_probs, binarize=True)
     r.save(visual_results_path + num_id + "_pre_pred.png")
-    r = postprocess_segmap_tensor_to_pil_img(post_pred)
+    r = postprocess_segmap_tensor_to_pil_img(post_probs)
     r.save(visual_results_path + num_id + "_post_pred.png")
-    r = postprocess_combined_predictions(pre_pred, post_pred)
+    r = postprocess_combined_predictions(pre_probs, post_probs)
     r.save(visual_results_path + num_id + "_combo_pred.png")
 
     # Save input images as well for visual reference
