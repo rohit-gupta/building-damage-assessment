@@ -117,9 +117,9 @@ for epoch in range(int(config["hyperparameters"]["NUM_EPOCHS"])):
                 pre_seg = logits_to_probs(reconstruct_full(segmentations[:NUM_TILES, :, :, :]))
                 post_seg = logits_to_probs(reconstruct_full(segmentations[NUM_TILES:, :, :, :]))
                 segs += [torch.cat((pre_seg, post_seg), dim=0)]
-                labels = reconstruct_full(postlabels[i].cpu())
+                label_map = reconstruct_full(postlabels[i].cpu())
                 # crop off labels for edges
-                labels = labels[:, CROP_BEGIN: CROP_END, CROP_BEGIN: CROP_END]
+                labels += [label_map[:, CROP_BEGIN: CROP_END, CROP_BEGIN: CROP_END]]
 
             input_batch = torch.stack(segs, dim=0)
 
