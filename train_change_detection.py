@@ -60,7 +60,7 @@ if config["misc"]["APEX_OPT_LEVEL"] != "None":
 
 print(changenet)
 
-trainloader, _ = xview_train_loader_factory("change",
+trainloader, _, _ = xview_train_loader_factory("change",
                                             config["paths"]["XVIEW_ROOT"],
                                             config["dataloader"]["DATA_VERSION"],
                                             config["dataloader"]["USE_TIER3_TRAIN"],
@@ -71,7 +71,7 @@ trainloader, _ = xview_train_loader_factory("change",
                                             False)
 
 
-_, valloader = xview_train_loader_factory("change",
+_, valloader, _ = xview_train_loader_factory("change",
                                           config["paths"]["XVIEW_ROOT"],
                                           config["dataloader"]["DATA_VERSION"],
                                           False,
