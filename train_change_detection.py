@@ -19,6 +19,9 @@ from utils import logits_to_probs
 from functools import partial
 from losses import cross_entropy, localization_aware_cross_entropy
 from train_utils import save_model, save_val_results, save_val_gt
+from logger import MetricLog
+from metrics import AverageMeter
+
 
 config_name = os.environ["XVIEW_CONFIG"]
 config = read_config(config_name, config_type="change")
@@ -98,11 +101,16 @@ semseg_model.eval()
 MODELS_FOLDER = config["paths"]["MODELS"] + config_name + "/"
 pathlib.Path(MODELS_FOLDER).mkdir(parents=True, exist_ok=True)
 
+# Logging
+train_loss = AverageMeter("train_loss")
+train_loss_log = MetricLog("train_loss")
+
+
 for epoch in range(int(config["hyperparameters"]["NUM_EPOCHS"])):
 
     train_pbar = tqdm.tqdm(total=len(trainloader))
-
     changenet.train()
+    train_loss.reset()
     for idx, (pretiles, posttiles, prelabels, postlabels) in enumerate(trainloader):
         with torch.set_grad_enabled(False):
             segs = []
@@ -130,7 +138,6 @@ for epoch in range(int(config["hyperparameters"]["NUM_EPOCHS"])):
             input_batch = input_batch.to(gpu1)
             labels_batch = labels_batch.to(gpu1)
 
-        changenet.train()
         # zero the parameter gradients
         optimizer.zero_grad()
         with torch.set_grad_enabled(True):
@@ -147,13 +154,18 @@ for epoch in range(int(config["hyperparameters"]["NUM_EPOCHS"])):
             if config["misc"]["APEX_OPT_LEVEL"] != "None":
                 with amp.scale_loss(loss, optimizer) as scaled_loss:
                     scaled_loss.backward()
+                    optimizer.step()
             else:
                 loss.backward()
+                optimizer.step()
+            loss_val = loss.item()
+            train_loss.update(val=loss_val)
 
-            optimizer.step()
             train_pbar.update(1)
 
+    train_loss_log.update(train_loss.value())
     changenet.eval()
+
     for idx, (pretiles, posttiles, prelabels, postlabels) in enumerate(valloader):
 
         pretiles[0] = pretiles[0].to(gpu0)
