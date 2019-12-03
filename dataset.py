@@ -291,6 +291,7 @@ def xview_train_loader_factory(mode, xview_root, data_version, use_tier3,
         val_tile_size = tile_size
         val_crop_size = 1024
         val_batch_size = 1
+        use_scale_jitter = True
     elif mode == "change":
         train_mode = "tiles"
         train_tile_size = tile_size
@@ -299,11 +300,12 @@ def xview_train_loader_factory(mode, xview_root, data_version, use_tier3,
         val_tile_size = tile_size
         val_crop_size = 1024
         val_batch_size = batch_size
+        use_scale_jitter = False
 
     train_set = xviewDataset(train_data, mode=train_mode, load_segmaps=True,
                              actual_size=1024, crop_size=train_crop_size, tile_size=train_tile_size,
                              ls_kernel_size=1, shuffle=True,
-                             flips=True, scale_jitter=True, color_jitter=True,
+                             flips=True, scale_jitter=use_scale_jitter, color_jitter=True,
                              erase=False, noise=False, distort=False)
 
     val_set = xviewDataset(val_data, mode="tiles", load_segmaps=True,
