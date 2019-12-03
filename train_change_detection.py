@@ -109,7 +109,7 @@ train_loss_log = MetricLog("train_loss")
 for epoch in range(int(config["hyperparameters"]["NUM_EPOCHS"])):
 
     train_pbar = tqdm.tqdm(total=len(trainloader))
-    changenet.train()
+    changenet = changenet.train()
     train_loss.reset()
     for idx, (pretiles, posttiles, prelabels, postlabels) in enumerate(trainloader):
         with torch.set_grad_enabled(False):
@@ -164,7 +164,7 @@ for epoch in range(int(config["hyperparameters"]["NUM_EPOCHS"])):
             train_pbar.update(1)
 
     train_loss_log.update(train_loss.value())
-    changenet.eval()
+    changenet = changenet.eval()
 
     for idx, (pretiles, posttiles, prelabels, postlabels) in enumerate(valloader):
 
@@ -183,7 +183,7 @@ for epoch in range(int(config["hyperparameters"]["NUM_EPOCHS"])):
         seg_result = seg_result.to(gpu1)
 
         with torch.set_grad_enabled(False):
-            preds = changenet(seg_result)[-1][0,:,:,:]
+            preds = changenet(seg_result)[-1][0, :, :, :]
 
         # Write to disk for visually tracking training progress
         save_path = "val_results/" + config_name + "/" + str(idx) + "/"
@@ -195,7 +195,3 @@ for epoch in range(int(config["hyperparameters"]["NUM_EPOCHS"])):
         # Save model
         if epoch % config["misc"]["SAVE_FREQ"] == 0:
             save_model(changenet.state_dict(), MODELS_FOLDER, epoch)
-
-
-
-
