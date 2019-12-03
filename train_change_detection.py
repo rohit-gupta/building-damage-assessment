@@ -67,7 +67,8 @@ trainloader, _ = xview_train_loader_factory("change",
                                             config["dataloader"]["CROP_SIZE"],
                                             config["dataloader"]["TILE_SIZE"],
                                             config["dataloader"]["BATCH_SIZE"],
-                                            config["dataloader"]["THREADS"])
+                                            config["dataloader"]["THREADS"],
+                                            False)
 
 
 _, valloader = xview_train_loader_factory("change",
@@ -77,7 +78,8 @@ _, valloader = xview_train_loader_factory("change",
                                           1024,
                                           512,
                                           1,
-                                          1)
+                                          1,
+                                          False)
 # print("Beginning Test Inference using model from Epoch #", BEST_EPOCH, ":")
 models_folder = str(config["paths"]["MODELS"]) + config_name + "/"
 semseg_model.load_state_dict(clean_distributed_state_dict(torch.load(config["change"]["BASELINE_SEG_MODEL"])))
