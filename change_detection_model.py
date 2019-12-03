@@ -45,10 +45,15 @@ class MultiScaleContextLayer(nn.Module):
         num_branches = len(kernel_scales)
         assert feature_channels % num_branches == 0, "number of feature channels not divisible by number of branches"
 
+        if kernel_scales[0] > 1:
+            local_branch_padding_type = padding_type
+        else:
+            local_branch_padding_type = None
+
         self.local_branch = ConvLayer(in_channels, feature_channels / num_branches,
                                       kernel_size=kernel_scales[0],
                                       dilation=dilation_scales[0],
-                                      use_bn=use_bn, padding_type=padding_type)
+                                      use_bn=use_bn, padding_type=local_branch_padding_type)
 
         if num_branches >= 2:
             self.non_local_branch1 = ConvLayer(in_channels, feature_channels / num_branches,
