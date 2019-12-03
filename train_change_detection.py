@@ -136,7 +136,7 @@ for epoch in range(int(config["hyperparameters"]["NUM_EPOCHS"])):
         optimizer.zero_grad()
         with torch.set_grad_enabled(True):
             preds = changenet(input_batch)
-            cropped_preds = preds[:, CROP_BEGIN:CROP_END, CROP_BEGIN:CROP_END]
+            cropped_preds = preds[-1][:, CROP_BEGIN:CROP_END, CROP_BEGIN:CROP_END]
 
 
             if config["hyperparameters"]["LOSS"] == "crossentropy":
