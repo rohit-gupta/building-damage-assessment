@@ -179,7 +179,7 @@ for epoch in range(int(config["hyperparameters"]["NUM_EPOCHS"])):
         save_val_results(save_path, epoch, config["hyperparameters"]["LOSS"], preds, preds, tiled=False)
         # Save groundtruth
         if epoch == 0:  # Groundtruth only needs to be saved once
-            save_val_gt(save_path, pretiles[0], posttiles[0], prelabels[0], postlabels[0], TILE_SIZE)
+            save_val_gt(save_path, pretiles[0], posttiles[0], prelabels[0], postlabels[0], 512)
         # Save model
         if epoch % config["misc"]["SAVE_FREQ"] == 0:
             save_model(changenet.state_dict(), MODELS_FOLDER, epoch)
