@@ -171,8 +171,7 @@ for epoch in range(int(config["hyperparameters"]["NUM_EPOCHS"])):
         seg_result = seg_result.to(gpu1)
 
         with torch.set_grad_enabled(False):
-            preds = changenet(seg_result)[-1]
-        print(preds.shape)
+            preds = changenet(seg_result)[-1][0,:,:,:]
 
         # Write to disk for visually tracking training progress
         save_path = "val_results/" + config_name + "/" + str(idx) + "/"
