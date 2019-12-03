@@ -107,7 +107,7 @@ for epoch in range(int(config["hyperparameters"]["NUM_EPOCHS"])):
         with torch.set_grad_enabled(False):
             segs = []
             labels = []
-            for i in range(BATCH_SIZE):
+            for i in range(len(pretiles)):
                 pretiles[i] = pretiles[i].to(gpu0)
                 posttiles[i] = posttiles[i].to(gpu0)
                 with torch.set_grad_enabled(False):
@@ -122,7 +122,6 @@ for epoch in range(int(config["hyperparameters"]["NUM_EPOCHS"])):
                 labels += [label_map[:, CROP_BEGIN: CROP_END, CROP_BEGIN: CROP_END]]
 
             input_batch = torch.stack(segs, dim=0)
-
             labels_batch = torch.stack(labels, dim=0)
 
             # free up GPU memory, hopefully
@@ -136,8 +135,7 @@ for epoch in range(int(config["hyperparameters"]["NUM_EPOCHS"])):
         optimizer.zero_grad()
         with torch.set_grad_enabled(True):
             preds = changenet(input_batch)
-            cropped_preds = preds[-1][:, CROP_BEGIN:CROP_END, CROP_BEGIN:CROP_END]
-
+            cropped_preds = preds[-1][:, :, CROP_BEGIN:CROP_END, CROP_BEGIN:CROP_END]
 
             if config["hyperparameters"]["LOSS"] == "crossentropy":
                 loss = cross_entropy(labels_batch, cropped_preds)
@@ -153,6 +151,7 @@ for epoch in range(int(config["hyperparameters"]["NUM_EPOCHS"])):
                 loss.backward()
 
             optimizer.step()
+            train_pbar.update(1)
 
     changenet.eval()
     for idx, (pretiles, posttiles, prelabels, postlabels) in enumerate(valloader):
