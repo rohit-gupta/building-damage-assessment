@@ -13,6 +13,7 @@ from config_parser import read_config
 from dataset import xview_train_loader_factory
 from utils import clean_distributed_state_dict
 from utils import reconstruct_from_tiles
+from utils import logits_to_probs
 from functools import partial
 from losses import cross_entropy, localization_aware_cross_entropy
 from train_utils import save_model, save_val_results, save_val_gt
@@ -59,15 +60,24 @@ if config["misc"]["APEX_OPT_LEVEL"] != "None":
 
 print(changenet)
 
-trainloader, valloader = xview_train_loader_factory("change",
-                                                    config["paths"]["XVIEW_ROOT"],
-                                                    config["dataloader"]["DATA_VERSION"],
-                                                    config["dataloader"]["USE_TIER3_TRAIN"],
-                                                    config["dataloader"]["CROP_SIZE"],
-                                                    config["dataloader"]["TILE_SIZE"],
-                                                    config["dataloader"]["BATCH_SIZE"],
-                                                    config["dataloader"]["THREADS"])
+trainloader, _ = xview_train_loader_factory("change",
+                                            config["paths"]["XVIEW_ROOT"],
+                                            config["dataloader"]["DATA_VERSION"],
+                                            config["dataloader"]["USE_TIER3_TRAIN"],
+                                            config["dataloader"]["CROP_SIZE"],
+                                            config["dataloader"]["TILE_SIZE"],
+                                            config["dataloader"]["BATCH_SIZE"],
+                                            config["dataloader"]["THREADS"])
 
+
+_, valloader = xview_train_loader_factory("change",
+                                          config["paths"]["XVIEW_ROOT"],
+                                          config["dataloader"]["DATA_VERSION"],
+                                          False,
+                                          1024,
+                                          512,
+                                          1,
+                                          1)
 # print("Beginning Test Inference using model from Epoch #", BEST_EPOCH, ":")
 models_folder = str(config["paths"]["MODELS"]) + config_name + "/"
 semseg_model.load_state_dict(clean_distributed_state_dict(torch.load(config["change"]["BASELINE_SEG_MODEL"])))
@@ -94,11 +104,12 @@ for epoch in range(int(config["hyperparameters"]["NUM_EPOCHS"])):
             for i in range(BATCH_SIZE):
                 pretiles[i] = pretiles[i].to(gpu0)
                 posttiles[i] = posttiles[i].to(gpu0)
-                segmentations = semseg_model(torch.cat((pretiles[i], posttiles[i])))
+                with torch.set_grad_enabled(False):
+                    segmentations = semseg_model(torch.cat((pretiles[i], posttiles[i])))
                 segmentations = segmentations.cpu()
 
-                pre_seg = [reconstruct_full(segmentations[:NUM_TILES, :, :, :])]
-                post_seg = [reconstruct_full(segmentations[NUM_TILES:, :, :, :])]
+                pre_seg = logits_to_probs(reconstruct_full(segmentations[:NUM_TILES, :, :, :]))
+                post_seg = logits_to_probs(reconstruct_full(segmentations[NUM_TILES:, :, :, :]))
                 segs += [torch.cat((pre_seg, post_seg), dim=0)]
                 labels = reconstruct_full(postlabels[i].cpu())
 
@@ -137,23 +148,34 @@ for epoch in range(int(config["hyperparameters"]["NUM_EPOCHS"])):
 
         changenet.eval()
         for idx, (pretiles, posttiles, prelabels, postlabels) in enumerate(valloader):
-            # TODO compute results for val set
-            # TODO
-            # TODO
-            # TODO
-            # TODO
-            # TODO
-            # TODO save val results for epoch
+
+            pretiles[0] = pretiles[0].to(gpu0)
+            posttiles[0] = posttiles[0].to(gpu0)
+            with torch.set_grad_enabled(False):
+                segmentations = semseg_model(torch.cat((pretiles[0], posttiles[0])))
+            segmentations = segmentations.cpu()
+
+            pre_seg = logits_to_probs(reconstruct_from_tiles(segmentations[:4, :, :, :], 5, 512, 1024))
+            post_seg = logits_to_probs(reconstruct_from_tiles(segmentations[4:, :, :, :], 5, 512, 1024))
+            seg = torch.cat((pre_seg, post_seg), dim=0)
+            seg_result = torch.unsqueeze(seg, 0)
+            labels = reconstruct_from_tiles(postlabels[0], 5, 512, 1024)
+
+            seg_result.to(gpu1)
+
+            with torch.set_grad_enabled(False):
+                preds = changenet(seg_result)
+
             # Write to disk for visually tracking training progress
             save_path = "val_results/" + config_name + "/" + str(idx) + "/"
             pathlib.Path(save_path).mkdir(parents=True, exist_ok=True)
-            save_val_results(save_path, epoch, config["hyperparameters"]["LOSS"], cropped_preds, cropped_preds, tiled=False)
+            save_val_results(save_path, epoch, config["hyperparameters"]["LOSS"], preds, preds, tiled=False)
             # Save groundtruth
             if epoch == 0:  # Groundtruth only needs to be saved once
-                save_val_gt(save_path,  TILE_SIZE)
+                save_val_gt(save_path, pretiles[0], posttiles[0], prelabels[0], postlabels[0], TILE_SIZE)
             # Save model
             if epoch % config["misc"]["SAVE_FREQ"] == 0:
-                save_model(changenet.state_dict(), pretiles[0], posttiles[0], prelabels[0], postlabels[0], MODELS_FOLDER, epoch)
+                save_model(changenet.state_dict(), MODELS_FOLDER, epoch)
 
 
 
