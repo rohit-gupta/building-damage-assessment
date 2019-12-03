@@ -16,7 +16,12 @@ class ConvLayer(nn.Module):
                               int(kernel_size),
                               dilation=int(dilation),
                               bias=False)
-        nn.init.kaiming_uniform_(self.conv.weight)
+        # if kernel_size == 1:
+        #     nn.init.ones_
+        # nn.init.kaiming_uniform_(self.conv.weight)
+        print(self.conv.weight.data.shape)
+        nn.init.zeros_(self.conv.weight)
+        # nn.init.kaiming_uniform_(self.conv.weight)
         if use_bn:
             self.bn = nn.BatchNorm2d(int(out_channels), eps=0.001)
             nn.init.ones_(self.bn.weight)
