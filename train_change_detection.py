@@ -82,7 +82,7 @@ _, valloader, _ = xview_train_loader_factory("change",
                                           False)
 # print("Beginning Test Inference using model from Epoch #", BEST_EPOCH, ":")
 models_folder = str(config["paths"]["MODELS"]) + config_name + "/"
-semseg_model.load_state_dict(clean_distributed_state_dict(torch.load(config["change"]["BASELINE_SEG_MODEL"])))
+semseg_model.load_state_dict(clean_distributed_state_dict(torch.load(config["change"]["SEG_MODEL"])))
 
 CROP_BEGIN = (config["dataloader"]["CROP_SIZE"] - config["change"]["POST_CROP"])//2
 CROP_END = config["dataloader"]["CROP_SIZE"] - CROP_BEGIN
