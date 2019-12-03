@@ -3,6 +3,8 @@ import os
 import sys
 import pathlib
 
+import tqdm
+
 import torch
 from torchvision.models.segmentation import deeplabv3_resnet50
 import torch.optim as optim
@@ -98,6 +100,8 @@ pathlib.Path(MODELS_FOLDER).mkdir(parents=True, exist_ok=True)
 
 for epoch in range(int(config["hyperparameters"]["NUM_EPOCHS"])):
 
+    train_pbar = tqdm.tqdm(total=len(trainloader))
+
     changenet.train()
     for idx, (pretiles, posttiles, prelabels, postlabels) in enumerate(trainloader):
         with torch.set_grad_enabled(False):
@@ -148,36 +152,36 @@ for epoch in range(int(config["hyperparameters"]["NUM_EPOCHS"])):
 
             optimizer.step()
 
-        changenet.eval()
-        for idx, (pretiles, posttiles, prelabels, postlabels) in enumerate(valloader):
+    changenet.eval()
+    for idx, (pretiles, posttiles, prelabels, postlabels) in enumerate(valloader):
 
-            pretiles[0] = pretiles[0].to(gpu0)
-            posttiles[0] = posttiles[0].to(gpu0)
-            with torch.set_grad_enabled(False):
-                segmentations = semseg_model(torch.cat((pretiles[0], posttiles[0])))['out']
-            segmentations = segmentations.cpu()
+        pretiles[0] = pretiles[0].to(gpu0)
+        posttiles[0] = posttiles[0].to(gpu0)
+        with torch.set_grad_enabled(False):
+            segmentations = semseg_model(torch.cat((pretiles[0], posttiles[0])))['out']
+        segmentations = segmentations.cpu()
 
-            pre_seg = logits_to_probs(reconstruct_from_tiles(segmentations[:4, :, :, :], 5, 512, 1024))
-            post_seg = logits_to_probs(reconstruct_from_tiles(segmentations[4:, :, :, :], 5, 512, 1024))
-            seg = torch.cat((pre_seg, post_seg), dim=0)
-            seg_result = torch.unsqueeze(seg, 0)
-            labels = reconstruct_from_tiles(postlabels[0], 5, 512, 1024)
+        pre_seg = logits_to_probs(reconstruct_from_tiles(segmentations[:4, :, :, :], 5, 512, 1024))
+        post_seg = logits_to_probs(reconstruct_from_tiles(segmentations[4:, :, :, :], 5, 512, 1024))
+        seg = torch.cat((pre_seg, post_seg), dim=0)
+        seg_result = torch.unsqueeze(seg, 0)
+        labels = reconstruct_from_tiles(postlabels[0], 5, 512, 1024)
 
-            seg_result.to(gpu1)
+        seg_result.to(gpu1)
 
-            with torch.set_grad_enabled(False):
-                preds = changenet(seg_result)
+        with torch.set_grad_enabled(False):
+            preds = changenet(seg_result)
 
-            # Write to disk for visually tracking training progress
-            save_path = "val_results/" + config_name + "/" + str(idx) + "/"
-            pathlib.Path(save_path).mkdir(parents=True, exist_ok=True)
-            save_val_results(save_path, epoch, config["hyperparameters"]["LOSS"], preds, preds, tiled=False)
-            # Save groundtruth
-            if epoch == 0:  # Groundtruth only needs to be saved once
-                save_val_gt(save_path, pretiles[0], posttiles[0], prelabels[0], postlabels[0], TILE_SIZE)
-            # Save model
-            if epoch % config["misc"]["SAVE_FREQ"] == 0:
-                save_model(changenet.state_dict(), MODELS_FOLDER, epoch)
+        # Write to disk for visually tracking training progress
+        save_path = "val_results/" + config_name + "/" + str(idx) + "/"
+        pathlib.Path(save_path).mkdir(parents=True, exist_ok=True)
+        save_val_results(save_path, epoch, config["hyperparameters"]["LOSS"], preds, preds, tiled=False)
+        # Save groundtruth
+        if epoch == 0:  # Groundtruth only needs to be saved once
+            save_val_gt(save_path, pretiles[0], posttiles[0], prelabels[0], postlabels[0], TILE_SIZE)
+        # Save model
+        if epoch % config["misc"]["SAVE_FREQ"] == 0:
+            save_model(changenet.state_dict(), MODELS_FOLDER, epoch)
 
 
 
