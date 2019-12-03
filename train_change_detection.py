@@ -41,7 +41,7 @@ semseg_model = deeplabv3_resnet50(pretrained=False,
                                   num_classes=5,
                                   aux_loss=None)
 
-changenet = ChangeDetectionNet(classes=5, num_layers=config["change"]["NUM_LAYERS"], feature_channels=15,
+changenet = ChangeDetectionNet(classes=5, num_layers=config["change"]["NUM_LAYERS"], feature_channels=5*len(config["change"]["KERNEL_SIZES"]),
                                kernel_scales=config["change"]["KERNEL_SIZES"],
                                dilation_scales=config["change"]["KERNEL_DILATIONS"],
                                use_bn=True, padding_type="replication")
