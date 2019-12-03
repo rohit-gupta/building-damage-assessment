@@ -134,8 +134,8 @@ for epoch in range(int(config["hyperparameters"]["NUM_EPOCHS"])):
         # zero the parameter gradients
         optimizer.zero_grad()
         with torch.set_grad_enabled(True):
-            preds = changenet(input_batch)
-            cropped_preds = preds[-1][:, :, CROP_BEGIN:CROP_END, CROP_BEGIN:CROP_END]
+            preds = changenet(input_batch)[-1]
+            cropped_preds = preds[:, :, CROP_BEGIN:CROP_END, CROP_BEGIN:CROP_END]
 
             if config["hyperparameters"]["LOSS"] == "crossentropy":
                 loss = cross_entropy(labels_batch, cropped_preds)
@@ -168,10 +168,11 @@ for epoch in range(int(config["hyperparameters"]["NUM_EPOCHS"])):
         seg_result = torch.unsqueeze(seg, 0)
         labels = reconstruct_from_tiles(postlabels[0], 5, 512, 1024)
 
-        seg_result.to(gpu1)
+        seg_result = seg_result.to(gpu1)
 
         with torch.set_grad_enabled(False):
-            preds = changenet(seg_result)
+            preds = changenet(seg_result)[-1]
+        print(preds.shape)
 
         # Write to disk for visually tracking training progress
         save_path = "val_results/" + config_name + "/" + str(idx) + "/"
