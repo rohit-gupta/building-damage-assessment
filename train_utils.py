@@ -46,3 +46,9 @@ def save_val_gt(save_path, pre_tiles, post_tiles, pre_label_tiles, post_label_ti
     r.save(save_path + "pre_gt.png")
     r = segmap_tensor_to_pil_img(post_gt)
     r.save(save_path + "post_gt.png")
+
+def save_val_seg(save_path, pre_seg, post_seg):
+    r = postprocess_segmap_tensor_to_pil_img(pre_seg, binarize=True)
+    r.save(save_path + "pre_seg.png")
+    r = postprocess_segmap_tensor_to_pil_img(post_seg)
+    r.save(save_path + "post_seg.png")

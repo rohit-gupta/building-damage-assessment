@@ -18,7 +18,7 @@ from utils import reconstruct_from_tiles
 from utils import logits_to_probs
 from functools import partial
 from losses import cross_entropy, localization_aware_cross_entropy
-from train_utils import save_model, save_val_results, save_val_gt
+from train_utils import save_model, save_val_results, save_val_gt, save_val_seg
 from logger import MetricLog
 from metrics import AverageMeter
 
@@ -192,6 +192,7 @@ for epoch in range(int(config["hyperparameters"]["NUM_EPOCHS"])):
         # Save groundtruth
         if epoch == 0:  # Groundtruth only needs to be saved once
             save_val_gt(save_path, pretiles[0], posttiles[0], prelabels[0], postlabels[0], 512)
+            save_val_seg(save_path, pre_seg, post_seg)
         # Save model
         if epoch % config["misc"]["SAVE_FREQ"] == 0:
             save_model(changenet.state_dict(), MODELS_FOLDER, epoch)
