@@ -61,6 +61,7 @@ changenet = changenet.to(gpu1)
 
 
 if config["misc"]["APEX_OPT_LEVEL"] != "None":
+    torch.cuda.set_device(gpu1)
     changenet, optimizer = amp.initialize(changenet, optimizer, opt_level=config["misc"]["APEX_OPT_LEVEL"])
 
 print(changenet)
