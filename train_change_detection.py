@@ -47,11 +47,11 @@ changenet = ChangeDetectionNet(classes=5, num_layers=config["change"]["NUM_LAYER
                                use_bn=True, padding_type="replication")
 
 if config["hyperparameters"]["OPTIMIZER"] == "ADAMW":
-    optimizer = optim.AdamW(semseg_model.parameters(),
+    optimizer = optim.AdamW(changenet.parameters(),
                             lr=config["hyperparameters"]["INITIAL_LR"],
                             weight_decay=config["hyperparameters"]["WEIGHT_DECAY"])
 elif config["hyperparameters"]["OPTIMIZER"] == "SGD":
-    optimizer = optim.SGD(semseg_model.parameters(),
+    optimizer = optim.SGD(changenet.parameters(),
                           lr=config["hyperparameters"]["INITIAL_LR"],
                           momentum=config["hyperparameters"]["MOMENTUM"],
                           weight_decay=config["hyperparameters"]["WEIGHT_DECAY"])
