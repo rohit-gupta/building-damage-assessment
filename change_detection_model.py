@@ -80,7 +80,9 @@ class MultiScaleContextLayer(nn.Module):
         else:
             self.non_local_branch2 = None
 
-        if not is_final_layer:
+        if is_final_layer:
+            self.merge_layer = None
+        else:
             self.merge_layer = ConvLayer(feature_channels, out_channels,
                                          kernel_size=1,
                                          dilation=1,
