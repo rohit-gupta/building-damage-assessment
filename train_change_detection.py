@@ -96,7 +96,8 @@ NUM_TILES = config["dataloader"]["CROP_SIZE"] // config["dataloader"]["TILE_SIZE
 NUM_TILES *= NUM_TILES
 TILE_SIZE = config["dataloader"]["CROP_SIZE"]/NUM_TILES
 semseg_model.eval()
-
+for p in semseg_model.parameters():
+    p.requires_grad = False
 
 MODELS_FOLDER = config["paths"]["MODELS"] + config_name + "/"
 pathlib.Path(MODELS_FOLDER).mkdir(parents=True, exist_ok=True)
@@ -118,8 +119,7 @@ for epoch in range(int(config["hyperparameters"]["NUM_EPOCHS"])):
             for i in range(len(pretiles)):
                 pretiles[i] = pretiles[i].to(gpu0)
                 posttiles[i] = posttiles[i].to(gpu0)
-                with torch.set_grad_enabled(False):
-                    segmentations = semseg_model(torch.cat((pretiles[i], posttiles[i])))['out']
+                segmentations = semseg_model(torch.cat((pretiles[i], posttiles[i])))['out']
                 segmentations = segmentations.cpu()
 
                 pre_seg = logits_to_probs(reconstruct_full(segmentations[:NUM_TILES, :, :, :]))
@@ -170,8 +170,7 @@ for epoch in range(int(config["hyperparameters"]["NUM_EPOCHS"])):
 
         pretiles[0] = pretiles[0].to(gpu0)
         posttiles[0] = posttiles[0].to(gpu0)
-        with torch.set_grad_enabled(False):
-            segmentations = semseg_model(torch.cat((pretiles[0], posttiles[0])))['out']
+        segmentations = semseg_model(torch.cat((pretiles[0], posttiles[0])))['out']
         segmentations = segmentations.cpu()
 
         pre_seg = logits_to_probs(reconstruct_from_tiles(segmentations[:4, :, :, :], 5, 512, 1024))
