@@ -151,10 +151,9 @@ for epoch in range(int(config["hyperparameters"]["NUM_EPOCHS"])):
             if config["misc"]["APEX_OPT_LEVEL"] != "None":
                 with amp.scale_loss(loss, optimizer) as scaled_loss:
                     scaled_loss.backward()
-                    optimizer.step()
             else:
                 loss.backward()
-                optimizer.step()
+            optimizer.step()
             loss_val = loss.item()
             train_loss.update(val=loss_val)
 
