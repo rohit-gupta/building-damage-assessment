@@ -44,7 +44,7 @@ semseg_model = deeplabv3_resnet50(pretrained=False,
 changenet = ChangeDetectionNet(classes=5, num_layers=config["change"]["NUM_LAYERS"], feature_channels=5*len(config["change"]["KERNEL_SIZES"]),
                                kernel_scales=config["change"]["KERNEL_SIZES"],
                                dilation_scales=config["change"]["KERNEL_DILATIONS"],
-                               use_bn=True, padding_type="replication")
+                               use_bn=False, padding_type="replication")
 
 if config["hyperparameters"]["OPTIMIZER"] == "ADAMW":
     optimizer = optim.AdamW(changenet.parameters(),
@@ -56,12 +56,11 @@ elif config["hyperparameters"]["OPTIMIZER"] == "SGD":
                           momentum=config["hyperparameters"]["MOMENTUM"],
                           weight_decay=config["hyperparameters"]["WEIGHT_DECAY"])
 
-semseg_model = semseg_model.to(gpu0)
-changenet = changenet.to(gpu1)
+semseg_model = semseg_model.to(gpu1)
+changenet = changenet.to(gpu0)
 
 
 if config["misc"]["APEX_OPT_LEVEL"] != "None":
-    torch.cuda.set_device(gpu1)
     changenet, optimizer = amp.initialize(changenet, optimizer, opt_level=config["misc"]["APEX_OPT_LEVEL"])
 
 print(changenet)
@@ -95,10 +94,12 @@ CROP_END = config["dataloader"]["CROP_SIZE"] - CROP_BEGIN
 BATCH_SIZE = config["dataloader"]["BATCH_SIZE"]
 NUM_TILES = config["dataloader"]["CROP_SIZE"] // config["dataloader"]["TILE_SIZE"]
 NUM_TILES *= NUM_TILES
-TILE_SIZE = config["dataloader"]["CROP_SIZE"]/NUM_TILES
 semseg_model.eval()
 for p in semseg_model.parameters():
     p.requires_grad = False
+
+for p in changenet.parameters():
+    p.requires_grad = True
 
 MODELS_FOLDER = config["paths"]["MODELS"] + config_name + "/"
 pathlib.Path(MODELS_FOLDER).mkdir(parents=True, exist_ok=True)
@@ -114,30 +115,25 @@ for epoch in range(int(config["hyperparameters"]["NUM_EPOCHS"])):
     changenet = changenet.train()
     train_loss.reset()
     for idx, (pretiles, posttiles, prelabels, postlabels) in enumerate(trainloader):
-        with torch.set_grad_enabled(False):
-            segs = []
-            labels = []
-            for i in range(len(pretiles)):
-                pretiles[i] = pretiles[i].to(gpu0)
-                posttiles[i] = posttiles[i].to(gpu0)
-                segmentations = semseg_model(torch.cat((pretiles[i], posttiles[i])))['out']
-                segmentations = segmentations.cpu()
+        segs = []
+        labels = []
+        for i in range(len(pretiles)):
+            pretiles[i] = pretiles[i].to(gpu1)
+            posttiles[i] = posttiles[i].to(gpu1)
+            segmentations = semseg_model(torch.cat((pretiles[i], posttiles[i])))['out']
+            segmentations = segmentations.cpu()
 
-                pre_seg = logits_to_probs(reconstruct_full(segmentations[:NUM_TILES, :, :, :]))
-                post_seg = logits_to_probs(reconstruct_full(segmentations[NUM_TILES:, :, :, :]))
-                segs += [torch.cat((pre_seg, post_seg), dim=0)]
-                label_map = reconstruct_full(postlabels[i].cpu())
-                # crop off labels for edges
-                labels += [label_map[:, CROP_BEGIN: CROP_END, CROP_BEGIN: CROP_END]]
+            pre_seg = logits_to_probs(reconstruct_full(segmentations[:NUM_TILES, :, :, :]))
+            post_seg = logits_to_probs(reconstruct_full(segmentations[NUM_TILES:, :, :, :]))
+            segs += [torch.cat((pre_seg, post_seg), dim=0)]
+            label_map = reconstruct_full(postlabels[i].cpu())
+            # crop off labels for edges
+            labels += [label_map[:, CROP_BEGIN: CROP_END, CROP_BEGIN: CROP_END]]
 
-            input_batch = torch.stack(segs, dim=0)
-            labels_batch = torch.stack(labels, dim=0)
-
-            # free up GPU memory, hopefully
-            del labels
-            del segs
-            input_batch = input_batch.to(gpu1)
-            labels_batch = labels_batch.to(gpu1)
+        input_batch = torch.stack(segs, dim=0)
+        labels_batch = torch.stack(labels, dim=0)
+        input_batch = input_batch.to(gpu0)
+        labels_batch = labels_batch.to(gpu0)
 
         # zero the parameter gradients
         optimizer.zero_grad()
@@ -169,8 +165,8 @@ for epoch in range(int(config["hyperparameters"]["NUM_EPOCHS"])):
 
     for idx, (pretiles, posttiles, prelabels, postlabels) in enumerate(valloader):
 
-        pretiles[0] = pretiles[0].to(gpu0)
-        posttiles[0] = posttiles[0].to(gpu0)
+        pretiles[0] = pretiles[0].to(gpu1)
+        posttiles[0] = posttiles[0].to(gpu1)
         segmentations = semseg_model(torch.cat((pretiles[0], posttiles[0])))['out']
         segmentations = segmentations.cpu()
 
@@ -180,19 +176,21 @@ for epoch in range(int(config["hyperparameters"]["NUM_EPOCHS"])):
         seg_result = torch.unsqueeze(seg, 0)
         labels = reconstruct_from_tiles(postlabels[0], 5, 512, 1024)
 
-        seg_result = seg_result.to(gpu1)
+        seg_result = seg_result.to(gpu0)
 
         with torch.set_grad_enabled(False):
             preds = changenet(seg_result)[0, :, :, :]
 
-        # Write to disk for visually tracking training progress
-        save_path = "val_results/" + config_name + "/" + str(idx) + "/"
-        pathlib.Path(save_path).mkdir(parents=True, exist_ok=True)
-        save_val_results(save_path, epoch, config["hyperparameters"]["LOSS"], preds, preds, tiled=False)
-        # Save groundtruth
-        if epoch == 0:  # Groundtruth only needs to be saved once
-            save_val_gt(save_path, pretiles[0], posttiles[0], prelabels[0], postlabels[0], 512)
-            save_val_seg(save_path, pre_seg, post_seg)
-        # Save model
-        if epoch % config["misc"]["SAVE_FREQ"] == 0:
-            save_model(changenet.state_dict(), MODELS_FOLDER, epoch)
+            # Write to disk for visually tracking training progress
+            save_path = "val_results/" + config_name + "/" + str(idx) + "/"
+            pathlib.Path(save_path).mkdir(parents=True, exist_ok=True)
+            save_val_results(save_path, epoch, config["hyperparameters"]["LOSS"], preds, preds, tiled=False)
+
+            # Save groundtruth
+            if epoch == 0:  # Groundtruth only needs to be saved once
+                save_val_gt(save_path, pretiles[0], posttiles[0], prelabels[0], postlabels[0], 512)
+                save_val_seg(save_path, pre_seg, post_seg)
+
+            # Save model
+            if epoch % config["misc"]["SAVE_FREQ"] == 0:
+                save_model(changenet.state_dict(), MODELS_FOLDER, epoch)
