@@ -5,8 +5,9 @@ from torch import Tensor
 
 class ConvLayer(nn.Module):
 
-    def __init__(self, in_channels, out_channels, kernel_size, dilation, use_bn=True, padding_type=None):
+    def __init__(self, in_channels, out_channels, kernel_size, dilation, use_bn=True, padding_type=None, apply_relu=True):
         super(ConvLayer, self).__init__()
+        self.apply_rely = apply_relu
         self.padding_type = padding_type
         if padding_type == "replication":
             self.pad = nn.ReplicationPad2d((kernel_size * dilation - dilation + 1) // 2)  # SAME padding
@@ -18,9 +19,9 @@ class ConvLayer(nn.Module):
                               bias=False)
         # if kernel_size == 1:
         #     nn.init.ones_
-        # nn.init.kaiming_uniform_(self.conv.weight)
+        nn.init.kaiming_uniform_(self.conv.weight)
         print(self.conv.weight.data.shape)
-        nn.init.zeros_(self.conv.weight)
+        # nn.init.zeros_(self.conv.weight)
         # nn.init.kaiming_uniform_(self.conv.weight)
         if use_bn:
             self.bn = nn.BatchNorm2d(int(out_channels), eps=0.001)
@@ -38,13 +39,16 @@ class ConvLayer(nn.Module):
         x = self.conv(x)
         if self.bn:
             x = self.bn(x)
-        return F.relu(x, inplace=True)
+        if self.apply_rely:
+            return F.relu(x, inplace=True)
+        else:
+            return x
 
 
 class MultiScaleContextLayer(nn.Module):
 
     def __init__(self, in_channels, feature_channels, out_channels, kernel_scales=None, dilation_scales=None,
-                 use_bn=True, padding_type="replication"):
+                 use_bn=True, padding_type="replication", is_final_layer=False):
         super(MultiScaleContextLayer, self).__init__()
         assert len(kernel_scales) == len(dilation_scales), "branch scales are mismatched"
         num_branches = len(kernel_scales)
@@ -76,10 +80,11 @@ class MultiScaleContextLayer(nn.Module):
         else:
             self.non_local_branch2 = None
 
-        self.merge_layer = ConvLayer(feature_channels, out_channels,
-                                     kernel_size=1,
-                                     dilation=1,
-                                     use_bn=False) # 1x1 Convs don't need padding
+        if not is_final_layer:
+            self.merge_layer = ConvLayer(feature_channels, out_channels,
+                                         kernel_size=1,
+                                         dilation=1,
+                                         use_bn=False)
 
     def forward(self, x):
         local_features = self.local_branch(x)
@@ -95,7 +100,10 @@ class MultiScaleContextLayer(nn.Module):
             features += [non_local_features2]
 
         merged_features = torch.cat(features, dim=1)
-        output = self.merge_layer(merged_features)
+        if self.merge_layer:
+            output = self.merge_layer(merged_features)
+        else:
+            output = merged_features
 
         return output
 
@@ -116,7 +124,8 @@ class ChangeDetectionNet(nn.Module):
                                                   out_channels=classes,
                                                   kernel_scales=kernel_scales,
                                                   dilation_scales=dilation_scales,
-                                                  use_bn=use_bn, padding_type=padding_type)
+                                                  use_bn=use_bn, padding_type=padding_type,
+                                                  is_final_layer=(num_layers == 1))
 
         higher_layers = []
         for layer_num in range(num_layers-1):
@@ -125,9 +134,15 @@ class ChangeDetectionNet(nn.Module):
                                                         out_channels=classes,
                                                         kernel_scales=kernel_scales,
                                                         dilation_scales=dilation_scales,
-                                                        use_bn=use_bn, padding_type=padding_type))
+                                                        use_bn=use_bn, padding_type=padding_type,
+                                                        is_final_layer=(num_layers == layer_num-2)))
 
         self.higher_layers = nn.ModuleList(higher_layers)
+
+        self.final_layer = ConvLayer(classes, classes,
+                                     kernel_size=1,
+                                     dilation=1,
+                                     use_bn=False, apply_relu=False)
 
     def forward(self, x):
         first_pred = self.first_layer(x)
@@ -135,4 +150,4 @@ class ChangeDetectionNet(nn.Module):
         for layer in self.higher_layers:
             preds.append(layer(torch.cat((x, preds[-1]), dim=1))) # Segmentation outputs + Prev Layer Change Prediction
 
-        return preds
+        return self.final_layer(preds[-1])
