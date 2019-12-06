@@ -18,10 +18,12 @@ def str2intarr(v):
   return [int(x) for x in v.split(" ")]
 
 type_map = {
-    "hyperparameters": {
+    "hyperparams": {
         "LOSS": str,
-        "LOCALIZATION_WEIGHT": float,
-        "CLASSIFICATION_WEIGHT": float,
+        "LOC_LOSS": str,
+        "LOC_WEIGHT": float,
+        "CLS_WEIGHT": float,
+        "FOCAL_GAMMA": float,
         "NUM_EPOCHS": int,
         "OPTIMIZER": str,
         "INITIAL_LR": float,
@@ -65,7 +67,7 @@ change_type_map = {
 
 
 def read_config(config_name, config_type="segmentation"):
-    config_file = config_name + ".ini"
+    config_file = "configs/" + config_name + ".ini"
     config = configparser.ConfigParser()
     config.optionxform = lambda option: option
     config.read(config_file)

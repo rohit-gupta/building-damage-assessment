@@ -10,7 +10,7 @@ def cross_entropy(gt_segmaps, pred_segmaps):
                      )
 
 
-def localization_aware_cross_entropy(gt_segmaps, pred_segmaps, loc_wt, cls_wt, gamma=0.0):
+def localization_aware_loss(gt_segmaps, pred_segmaps, loc_wt, cls_wt, gamma=0.0):
     gt_background, gt_classes = torch.split(gt_segmaps, [1,4], dim=1)
     pred_background, pred_classes = torch.split(pred_segmaps, [1, 4], dim=1)
 
