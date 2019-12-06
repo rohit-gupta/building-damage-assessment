@@ -31,13 +31,12 @@ def localization_aware_loss(gt_segmaps, pred_segmaps, loc_wt, cls_wt, gamma=0.0)
 
 
 def focal_loss(gt_segmaps, pred_segmaps, gamma):
-    gamma = torch.tensor(gamma)
+    # gamma = torch.tensor(gamma)
     logsoftmax = nn.LogSoftmax(dim=1)
 
     p = torch.nn.functional.softmax(pred_segmaps, dim=1)
     log_p = logsoftmax(pred_segmaps)
 
-    weight = torch.pow(torch.tensor(1.) - p,
-                       gamma.to(pred_segmaps.dtype))
+    weight = torch.pow(torch.tensor(1.) - p, gamma)
     focal = -weight * log_p
     return torch.mean(torch.sum(gt_segmaps * focal, dim=1)) # Sum across C, mean across H, W and N
