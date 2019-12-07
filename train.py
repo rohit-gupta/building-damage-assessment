@@ -60,6 +60,8 @@ else:
         torch.cuda.set_device("cuda:0")
     else:
         torch.cuda.set_device("cpu")
+
+torch.backends.cudnn.benchmark = True
 semseg_model = deeplabv3_resnet50(pretrained=False,
                                   num_classes=5,
                                   aux_loss=None)
@@ -255,7 +257,7 @@ for epoch in range(int(config["hyperparams"]["NUM_EPOCHS"])):
 
                 val_loss.update(val=val_loss_val.item(), n=1)
 
-                gt_classid = gt_segmentations[0].argmax(1)
+                gt_classid = gt_segmentations.argmax(1)
                 val_iou.add(pred_segmentations.detach(), gt_classid.detach())
 
             # Write to disk for visually tracking training progress
