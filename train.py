@@ -69,8 +69,8 @@ semseg_model = semseg_model.cuda()
 
 
 # print(semseg_model)
-
-NUM_TILES = config["dataloader"]["CROP_SIZE"] // config["dataloader"]["TILE_SIZE"]
+ACTUAL_SIZE = 1024
+NUM_TILES = ACTUAL_SIZE // config["dataloader"]["TILE_SIZE"]
 NUM_TILES *= NUM_TILES
 # create dataloader
 trainloader, valloader, train_sampler = xview_train_loader_factory("segmentation",
