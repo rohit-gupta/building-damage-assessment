@@ -14,9 +14,8 @@ def arr_to_int(x):
 
 
 def shapely_poly_to_imantics_poly(shp_poly):
-    print((shp_poly[0][1]))
-    x = arr_to_int(shp_poly[0][1])
-    y = arr_to_int(shp_poly[0][1])
+    x = arr_to_int(shp_poly[0])
+    y = arr_to_int(shp_poly[0])
 
     return [[x[i], y[i]]for i in range(len(x))]
 
