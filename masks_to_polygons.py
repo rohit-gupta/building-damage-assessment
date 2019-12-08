@@ -25,6 +25,7 @@ simp_polys = []
 for x in polygons.points:
     if len(x) < 5:
         print(len(x))
+        continue
     shp_poly = Polygon(x)
     shp_poly_simp = shp_poly.simplify(0.05, preserve_topology=True)
     simp_polys.append(shp_poly_simp.exterior.coords.xy)
