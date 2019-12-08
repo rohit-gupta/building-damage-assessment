@@ -20,6 +20,10 @@ polygons = Mask(pred).polygons()
 print(len(polygons.points))
 # print(polygons.segmentation)
 
+
+for x in polygons.points:
+    print(len(x))
+
 img = np.zeros((1024,1024,3)).astype(np.uint8)
 polygons.draw(img)
 Image.fromarray(img).save("masks_to_polygons/" + selected)
