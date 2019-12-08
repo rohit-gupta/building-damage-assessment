@@ -21,12 +21,12 @@ polygons = Mask(pred).polygons()
 # print(len(polygons.points))
 # print(polygons.segmentation)
 
-
-shp_poly = Polygon(polygons.points)
-shp_poly_simp = shp_poly.simplify(0.05, preserve_topology=True)
+simp_polys = []
 for x in polygons.points:
-    print(len(x))
-i_poly_simpy = Polygons(shp_poly_simp.exterior.coords.xy)
+    shp_poly = Polygon(x)
+    shp_poly_simp = shp_poly.simplify(0.05, preserve_topology=True)
+    simp_polys.append(shp_poly_simp.exterior.coords.xy)
+i_poly_simp = Polygons(simp_polys)
 
 img = np.zeros((1024,1024,3)).astype(np.uint8)
 polygons.draw(img)
@@ -34,5 +34,5 @@ Image.fromarray(img).save("masks_to_polygons/" + selected)
 
 
 img = np.zeros((1024,1024,3)).astype(np.uint8)
-i_poly_simpy.draw(img)
+i_poly_simp.draw(img)
 Image.fromarray(img).save("masks_to_polygons/simplified_" + selected)
