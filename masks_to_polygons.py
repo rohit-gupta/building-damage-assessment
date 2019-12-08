@@ -17,5 +17,5 @@ selected = "70.png"
 pred = open_image_as_nparray(location + preds + selected, dtype=np.uint8)
 pred[pred > 1] = 1
 polygons = Mask(pred).polygons()
-print(polygons.points)
-print(polygons.segmentation)
+print(len(polygons.points))
+# print(polygons.segmentation)
