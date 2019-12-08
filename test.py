@@ -31,6 +31,7 @@ config = configparser.ConfigParser()
 config.read(config_file)
 
 BEST_EPOCH = os.environ["XVIEW_BEST_EPOCH"]
+INFERENCE_SIZE = int(os.environ["INFERENCE_SIZE"])
 # BEST_EPOCH = 98
 
 if torch.cuda.is_available():
@@ -44,7 +45,8 @@ semseg_model = deeplabv3_resnet50(pretrained=False,
 semseg_model = semseg_model.to(device)
 # create dataloader
 test_loader = xview_test_loader_factory(config["paths"]["XVIEW_ROOT"],
-                                        int(config["dataloader"]["TILE_SIZE"]))
+                                        INFERENCE_SIZE)
+                                        # config["dataloader"]["TILE_SIZE"])
 
 print("Beginning Test Inference using model from Epoch #" + str(BEST_EPOCH) + ":")
 models_folder = str(config["paths"]["MODELS"]) + config_name + "/"
@@ -69,15 +71,16 @@ for idx, (pretiles, posttiles) in enumerate(test_loader):
         postoutputs = semseg_model(posttiles[0])
         post_preds = postoutputs['out']
 
-    pre_pred = reconstruct_from_tiles(pre_preds, 5, int(config["dataloader"]["TILE_SIZE"]))
-    post_pred = reconstruct_from_tiles(post_preds, 5, int(config["dataloader"]["TILE_SIZE"]))
+    if INFERENCE_SIZE < 1024:
+        pre_preds = reconstruct_from_tiles(pre_preds, 5, config["dataloader"]["TILE_SIZE"])
+        post_preds = reconstruct_from_tiles(post_preds, 5, config["dataloader"]["TILE_SIZE"])
 
     if config["hyperparameters"]["LOSS"] == "crossentropy":
-        pre_probs = torch.nn.functional.softmax(pre_pred, dim=1)
-        post_probs = torch.nn.functional.softmax(post_pred, dim=1)
+        pre_probs = torch.nn.functional.softmax(pre_preds, dim=1)
+        post_probs = torch.nn.functional.softmax(post_preds, dim=1)
     elif config["hyperparameters"]["LOSS"] == "locaware":
-        pre_probs = logits_to_probs(pre_pred)
-        post_probs = logits_to_probs(post_pred)
+        pre_probs = logits_to_probs(pre_preds)
+        post_probs = logits_to_probs(post_preds)
 
     # Write to disk for scoring
     save_path = "test_results/" + config_name + "/"

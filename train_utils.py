@@ -4,7 +4,7 @@ import torch
 
 from utils import reconstruct_from_tiles
 from utils import logits_to_probs
-from utils import postprocess_segmap_tensor_to_pil_img, postprocess_combined_predictions
+from utils import postprocess_segmap_tensor_to_pil_img, postprocess_combined_predictions, bg_prob_levels_img, fg_cls_img
 from utils import input_tensor_to_pil_img, segmap_tensor_to_pil_img
 
 def save_model(state_dict, path, epoch):
@@ -28,6 +28,10 @@ def save_val_results(save_path, epoch, loss_type, pre_pred, post_pred, tiled=Tru
     r.save(save_path + "post_pred_epoch_" + str(epoch) + ".png")
     r = postprocess_combined_predictions(pre_prob, post_prob)
     r.save(save_path + "combined_pred_epoch_" + str(epoch) + ".png")
+    r = bg_prob_levels_img(pre_prob)
+    r.save(save_path + "pre_probs_epoch_" + str(epoch) + ".png")
+    r = fg_cls_img(pre_prob)
+    r.save(save_path + "post_cls_epoch_" + str(epoch) + ".png")
 
 
 def save_val_gt(save_path, pre_tiles, post_tiles, pre_label_tiles, post_label_tiles, tile_size):

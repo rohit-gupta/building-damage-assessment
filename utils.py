@@ -114,6 +114,21 @@ def postprocess_combined_predictions(pre_pred_tensor, post_pred_tensor, apply_co
     return _tensor_to_pil(processed_post_predictions.astype(np.uint8), apply_color)
 
 
+def bg_prob_levels_img(pre_pred_tensor):
+    pre_segmap = pre_pred_tensor.cpu().numpy()
+    background = (255 * pre_segmap[0, :, :])
+
+    return _tensor_to_pil(background.astype(np.uint8), apply_color=False)
+
+
+def fg_cls_img(post_pred_tensor):
+    post_segmap = post_pred_tensor.cpu().numpy()
+    damage_class = np.argmax(post_segmap[1:, :, :], axis=0) + 1
+
+    return _tensor_to_pil(damage_class.astype(np.uint8), apply_color=True)
+
+
+
 def EMSG(errtype="ERROR"):
     if errtype in ["E", "ERR", "ERROR"]:
         errtype = "[ERROR] "
