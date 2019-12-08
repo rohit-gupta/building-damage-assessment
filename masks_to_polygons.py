@@ -10,7 +10,7 @@ def open_image_as_nparray(img_path, dtype):
 
 
 def arr_to_int(x):
-    return [int(x) for i in x]
+    return [int(i) for i in x]
 
 
 def shapely_poly_to_imantics_poly(shp_poly):
