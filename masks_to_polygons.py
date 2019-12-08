@@ -23,6 +23,8 @@ polygons = Mask(pred).polygons()
 
 simp_polys = []
 for x in polygons.points:
+    if x < 5:
+        print(len(x))
     shp_poly = Polygon(x)
     shp_poly_simp = shp_poly.simplify(0.05, preserve_topology=True)
     simp_polys.append(shp_poly_simp.exterior.coords.xy)
