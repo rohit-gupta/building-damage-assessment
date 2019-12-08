@@ -40,7 +40,7 @@ for x in polygons.points:
     shp_poly_simp = shp_poly.simplify(0.05, preserve_topology=True)
     simplified_polygon = shapely_poly_to_imantics_poly(shp_poly_simp.exterior.coords.xy)
     simp_polys.append(simplified_polygon)
-    print(x, simplified_polygon)
+    print(len(x), len(simplified_polygon))
 i_poly_simp = Polygons(simp_polys)
 
 img = np.zeros((1024,1024,3)).astype(np.uint8)
