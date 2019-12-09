@@ -80,10 +80,10 @@ for idx, (pretiles, posttiles) in enumerate(test_loader):
         pre_preds = pre_preds[0]
         post_preds = post_preds[0]
 
-    if config["hyperparameters"]["LOSS"] == "crossentropy":
+    if config["hyperparams"]["LOSS"] == "crossentropy":
         pre_probs = torch.nn.functional.softmax(pre_preds, dim=1)
         post_probs = torch.nn.functional.softmax(post_preds, dim=1)
-    elif config["hyperparameters"]["LOSS"] == "locaware":
+    elif config["hyperparams"]["LOSS"] == "locaware":
         pre_probs = logits_to_probs(pre_preds)
         post_probs = logits_to_probs(post_preds)
 
