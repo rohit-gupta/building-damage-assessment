@@ -153,3 +153,16 @@ class ChangeDetectionNet(nn.Module):
             preds.append(layer(torch.cat((x, preds[-1]), dim=1))) # Segmentation outputs + Prev Layer Change Prediction
 
         return self.final_layer(preds[-1])
+
+
+class RegressChangeNet(nn.Module):
+    def __init__(self):
+        super(RegressChangeNet, self).__init__()
+        self.conv = nn.Conv2d(in_channels=10, out_channels=5,
+                              kernel_size=1, stride=1, padding=0, dilation=1,
+                              groups=1, bias=False, padding_mode='zeros')
+
+        nn.init.kaiming_uniform_(self.conv.weight)
+
+    def forward(self, x):
+        return self.conv(x)

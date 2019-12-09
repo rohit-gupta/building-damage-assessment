@@ -10,14 +10,14 @@ from torchvision.models.segmentation import deeplabv3_resnet50
 import torch.optim as optim
 from apex import amp
 
-from change_detection_model import ChangeDetectionNet
+from change_detection_model import ChangeDetectionNet, RegressChangeNet
 from config_parser import read_config
 from dataset import xview_train_loader_factory
 from utils import clean_distributed_state_dict
 from utils import reconstruct_from_tiles
 from utils import logits_to_probs
 from functools import partial
-from losses import cross_entropy, localization_aware_cross_entropy
+from losses import cross_entropy, localization_aware_loss
 from train_utils import save_model, save_val_results, save_val_gt, save_val_seg
 from logger import MetricLog
 from metrics import AverageMeter
@@ -41,20 +41,23 @@ semseg_model = deeplabv3_resnet50(pretrained=False,
                                   num_classes=5,
                                   aux_loss=None)
 
-changenet = ChangeDetectionNet(classes=5, num_layers=config["change"]["NUM_LAYERS"], feature_channels=5*len(config["change"]["KERNEL_SIZES"]),
-                               kernel_scales=config["change"]["KERNEL_SIZES"],
-                               dilation_scales=config["change"]["KERNEL_DILATIONS"],
-                               use_bn=False, padding_type="replication")
+# changenet = ChangeDetectionNet(classes=5, num_layers=config["change"]["NUM_LAYERS"], feature_channels=5*len(config["change"]["KERNEL_SIZES"]),
+#                                kernel_scales=config["change"]["KERNEL_SIZES"],
+#                                dilation_scales=config["change"]["KERNEL_DILATIONS"],
+#                                use_bn=False, padding_type="replication")
 
-if config["hyperparameters"]["OPTIMIZER"] == "ADAMW":
+
+changenet = RegressChangeNet()
+
+if config["hyperparams"]["OPTIMIZER"] == "ADAMW":
     optimizer = optim.AdamW(changenet.parameters(),
-                            lr=config["hyperparameters"]["INITIAL_LR"],
-                            weight_decay=config["hyperparameters"]["WEIGHT_DECAY"])
-elif config["hyperparameters"]["OPTIMIZER"] == "SGD":
+                            lr=config["hyperparams"]["INITIAL_LR"],
+                            weight_decay=config["hyperparams"]["WEIGHT_DECAY"])
+elif config["hyperparams"]["OPTIMIZER"] == "SGD":
     optimizer = optim.SGD(changenet.parameters(),
-                          lr=config["hyperparameters"]["INITIAL_LR"],
-                          momentum=config["hyperparameters"]["MOMENTUM"],
-                          weight_decay=config["hyperparameters"]["WEIGHT_DECAY"])
+                          lr=config["hyperparams"]["INITIAL_LR"],
+                          momentum=config["hyperparams"]["MOMENTUM"],
+                          weight_decay=config["hyperparams"]["WEIGHT_DECAY"])
 
 semseg_model = semseg_model.to(gpu1)
 changenet = changenet.to(gpu0)
@@ -109,7 +112,7 @@ train_loss = AverageMeter("train_loss")
 train_loss_log = MetricLog("train_loss")
 
 
-for epoch in range(int(config["hyperparameters"]["NUM_EPOCHS"])):
+for epoch in range(int(config["hyperparams"]["NUM_EPOCHS"])):
 
     train_pbar = tqdm.tqdm(total=len(trainloader))
     changenet = changenet.train()
@@ -141,12 +144,12 @@ for epoch in range(int(config["hyperparameters"]["NUM_EPOCHS"])):
             preds = changenet(input_batch)
             cropped_preds = preds[:, :, CROP_BEGIN:CROP_END, CROP_BEGIN:CROP_END]
 
-            if config["hyperparameters"]["LOSS"] == "crossentropy":
+            if config["hyperparams"]["LOSS"] == "crossentropy":
                 loss = cross_entropy(labels_batch, cropped_preds)
-            elif config["hyperparameters"]["LOSS"] == "locaware":
-                loc_loss, cls_loss, loss = localization_aware_cross_entropy(labels_batch, cropped_preds,
-                                                                            config["hyperparameters"]["LOCALIZATION_WEIGHT"],
-                                                                            config["hyperparameters"]["CLASSIFICATION_WEIGHT"])
+            elif config["hyperparams"]["LOSS"] == "locaware":
+                loc_loss, cls_loss, loss = localization_aware_loss(labels_batch, cropped_preds,
+                                                                   config["hyperparams"]["LOC_WEIGHT"],
+                                                                   config["hyperparams"]["CLS_WEIGHT"])
 
             if config["misc"]["APEX_OPT_LEVEL"] != "None":
                 with amp.scale_loss(loss, optimizer) as scaled_loss:
@@ -183,7 +186,7 @@ for epoch in range(int(config["hyperparameters"]["NUM_EPOCHS"])):
             # Write to disk for visually tracking training progress
             save_path = "val_results/" + config_name + "/" + str(idx) + "/"
             pathlib.Path(save_path).mkdir(parents=True, exist_ok=True)
-            save_val_results(save_path, epoch, config["hyperparameters"]["LOSS"], preds, preds, tiled=False)
+            save_val_results(save_path, epoch, config["hyperparams"]["LOSS"], preds, preds, tiled=False)
 
             # Save groundtruth
             if epoch == 0:  # Groundtruth only needs to be saved once

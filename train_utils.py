@@ -30,7 +30,7 @@ def save_val_results(save_path, epoch, loss_type, pre_pred, post_pred, tiled=Tru
     r.save(save_path + "combined_pred_epoch_" + str(epoch) + ".png")
     r = bg_prob_levels_img(pre_prob)
     r.save(save_path + "pre_probs_epoch_" + str(epoch) + ".png")
-    r = fg_cls_img(pre_prob)
+    r = fg_cls_img(post_prob)
     r.save(save_path + "post_cls_epoch_" + str(epoch) + ".png")
 
 
