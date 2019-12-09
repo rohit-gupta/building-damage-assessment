@@ -26,7 +26,7 @@ import configparser
 import os
 
 config_name = os.environ["XVIEW_CONFIG"]
-config_file = config_name + ".ini"
+config_file = "configs/" + config_name + ".ini"
 config = configparser.ConfigParser()
 config.read(config_file)
 
@@ -48,6 +48,7 @@ test_loader = xview_test_loader_factory(config["paths"]["XVIEW_ROOT"],
                                         INFERENCE_SIZE)
                                         # config["dataloader"]["TILE_SIZE"])
 
+print("Using inference size = ", INFERENCE_SIZE)
 print("Beginning Test Inference using model from Epoch #" + str(BEST_EPOCH) + ":")
 models_folder = str(config["paths"]["MODELS"]) + config_name + "/"
 
@@ -72,8 +73,11 @@ for idx, (pretiles, posttiles) in enumerate(test_loader):
         post_preds = postoutputs['out']
 
     if INFERENCE_SIZE < 1024:
-        pre_preds = reconstruct_from_tiles(pre_preds, 5, config["dataloader"]["TILE_SIZE"])
-        post_preds = reconstruct_from_tiles(post_preds, 5, config["dataloader"]["TILE_SIZE"])
+        pre_preds = reconstruct_from_tiles(pre_preds, 5, int(config["dataloader"]["TILE_SIZE"]))
+        post_preds = reconstruct_from_tiles(post_preds, 5, int(config["dataloader"]["TILE_SIZE"]))
+    else:
+        pre_preds = pre_preds[0]
+        post_preds = post_preds[0]
 
     if config["hyperparameters"]["LOSS"] == "crossentropy":
         pre_probs = torch.nn.functional.softmax(pre_preds, dim=1)
@@ -108,8 +112,8 @@ for idx, (pretiles, posttiles) in enumerate(test_loader):
     r.save(visual_results_path + num_id + "_combo_pred.png")
 
     # Save input images as well for visual reference
-    pre_img = reconstruct_from_tiles(pretiles[0], 3, int(config["dataloader"]["TILE_SIZE"]))
-    post_img = reconstruct_from_tiles(posttiles[0], 3, int(config["dataloader"]["TILE_SIZE"]))
+    pre_img = reconstruct_from_tiles(pretiles[0], 3, INFERENCE_SIZE)
+    post_img = reconstruct_from_tiles(posttiles[0], 3, INFERENCE_SIZE)
 
     pilimg = input_tensor_to_pil_img(pre_img)
     pilimg.save(visual_results_path + num_id + "_pre_image.png")

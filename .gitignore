@@ -12,6 +12,7 @@ scores/
 *score.json
 val_results/
 test_results/
+masks_to_polygons/
 
 # Libreoffice lock files
 .~lock.*
