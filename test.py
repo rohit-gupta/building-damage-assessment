@@ -32,6 +32,7 @@ config.read(config_file)
 
 BEST_EPOCH = os.environ["XVIEW_BEST_EPOCH"]
 INFERENCE_SIZE = int(os.environ["INFERENCE_SIZE"])
+THRESHOLD = float(os.environ["THRESHOLD"])
 # BEST_EPOCH = 98
 
 if torch.cuda.is_available():
@@ -98,17 +99,17 @@ for idx, (pretiles, posttiles) in enumerate(test_loader):
 
     # Save results for leaderboard
 
-    r = postprocess_segmap_tensor_to_pil_img(pre_probs, apply_color=False, binarize=True)
+    r = postprocess_segmap_tensor_to_pil_img(pre_probs, apply_color=False, binarize=True, threshold=THRESHOLD)
     r.save(leaderboard_results_path + "test_localization_" + num_id + "_prediction.png")
-    r = postprocess_combined_predictions(pre_probs, post_probs, apply_color=False)
+    r = postprocess_combined_predictions(pre_probs, post_probs, apply_color=False, threshold=THRESHOLD)
     r.save(leaderboard_results_path + "test_damage_" + num_id + "_prediction.png")
 
     # Save visual results for examination
-    r = postprocess_segmap_tensor_to_pil_img(pre_probs, binarize=True)
+    r = postprocess_segmap_tensor_to_pil_img(pre_probs, binarize=True, threshold=THRESHOLD)
     r.save(visual_results_path + num_id + "_pre_pred.png")
     r = postprocess_segmap_tensor_to_pil_img(post_probs)
-    r.save(visual_results_path + num_id + "_post_pred.png")
-    r = postprocess_combined_predictions(pre_probs, post_probs)
+    r.save(visual_results_path + num_id + "_post_pred.png", threshold=THRESHOLD)
+    r = postprocess_combined_predictions(pre_probs, post_probs, threshold=THRESHOLD)
     r.save(visual_results_path + num_id + "_combo_pred.png")
 
     # Save input images as well for visual reference
