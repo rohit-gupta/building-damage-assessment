@@ -20,6 +20,7 @@ def open_image_as_nparray(img_path, dtype):
 
 XVIEW_CONFIG = os.environ["XVIEW_CONFIG"] + "/"
 EPOCHS = int(os.environ["XVIEW_EPOCHS"])
+THRESHOLD = int(round(255*float(os.environ["THRESHOLD"])))
 print(XVIEW_CONFIG, EPOCHS)
 prefix = "val_results/" + XVIEW_CONFIG
 samples = glob(prefix + "*/")
@@ -57,8 +58,14 @@ for idx, sample in enumerate(samples):
         pre_pred_path = sample + "pre_pred_epoch_" + str(epoch)
         post_pred_path = sample + "post_pred_epoch_" + str(epoch)
         combined_pred_path = sample + "combined_pred_epoch_" + str(epoch)
+        pre_probs_path = sample + "pre_probs_epoch_" + str(epoch)
+        post_cls_path = sample + "post_cls_epoch_" + str(epoch)
         if os.path.isfile(combined_pred_path + ".png"):
             post_pred_path = combined_pred_path
+        if os.path.isfile(pre_probs_path + ".png"):
+            pre_pred_path = pre_probs_path
+        if os.path.isfile(post_cls_path + ".png"):
+            post_pred_path = post_cls_path
 
         pre_pred = open_image_as_nparray(pre_pred_path + ".png", dtype=np.uint8)
         post_pred = open_image_as_nparray(post_pred_path + ".png", dtype=np.uint8)
@@ -68,7 +75,10 @@ for idx, sample in enumerate(samples):
         predictions_color_dir = output_dir + str(epoch) + "/predictions_color/"
 
         # Localization Binarization
-        pre_pred[pre_pred > 1] = 1
+        pre_pred[pre_pred > THRESHOLD] = 255
+        pre_pred[pre_pred <= THRESHOLD] = 0
+        pre_pred[pre_pred == 0] = 1
+        pre_pred[pre_pred == 255] = 0
         post_pred = post_pred * pre_pred
 
         # Write predictions output
