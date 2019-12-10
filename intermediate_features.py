@@ -4,6 +4,7 @@ import os
 
 import torch
 from torchvision.models.segmentation import deeplabv3_resnet50
+from torchvision.utils import save_image
 
 from config_parser import read_config
 from utils import clean_distributed_state_dict
@@ -19,4 +20,9 @@ if torch.cuda.is_available():
     gpu = torch.device('cuda:0')
 semseg_model.to(gpu)
 semseg_model.load_state_dict(clean_distributed_state_dict(torch.load(config["change"]["SEG_MODEL"])))
-print(semseg_model.backbone.conv1.weight.shape)
+
+
+layer1_weights = semseg_model.backbone.conv1.weight
+print(layer1_weights.shape)
+
+save_image(layer1_weights, "layer1_weights.png")
