@@ -19,4 +19,4 @@ if torch.cuda.is_available():
     gpu = torch.device('cuda:0')
 semseg_model.to(gpu)
 semseg_model.load_state_dict(clean_distributed_state_dict(torch.load(config["change"]["SEG_MODEL"])))
-print(semseg_model)
+print(semseg_model.backbone.conv1.weight.shape)
