@@ -13,6 +13,7 @@ import torch.optim as optim
 import torch.nn as nn
 import torch.nn.functional as F
 
+from apex import amp
 
 from losses import localization_aware_loss, cross_entropy
 from config_parser import read_config
@@ -27,7 +28,7 @@ class FeaturesModel(nn.Module):
     def __init__(self, weight):
         super(FeaturesModel, self).__init__()
         self.conv = nn.Conv2d(in_channels=weight.shape[1], out_channels=weight.shape[0],
-                              kernel_size=weight.shape[2], stride=1, padding=0, dilation=1,
+                              kernel_size=weight.shape[2], stride=1, padding=weight.shape[2]//2, dilation=1,
                               groups=1, bias=False, padding_mode='zeros')
 
         self.conv.weight = weight
@@ -37,10 +38,10 @@ class FeaturesModel(nn.Module):
 
 
 class RegressChangeNet(nn.Module):
-    def __init__(self):
+    def __init__(self, kernel_size=5, dilation=5):
         super(RegressChangeNet, self).__init__()
         self.conv1 = nn.Conv2d(in_channels=138, out_channels=5,
-                               kernel_size=5, stride=1, padding=0, dilation=5,
+                               kernel_size=kernel_size, stride=1, padding=dilation*(kernel_size//2), dilation=dilation,
                                groups=1, bias=False, padding_mode='zeros')
 
         nn.init.kaiming_uniform_(self.conv1.weight)
@@ -94,7 +95,8 @@ _, valloader, _ = xview_train_loader_factory("segmentation",
                                           False,
                                           1024,
                                           1024,  # No tiling
-                                          config["dataloader"]["BATCH_SIZE"],
+                                          #config["dataloader"]["BATCH_SIZE"],
+                                          1,
                                           config["dataloader"]["THREADS"],
                                           False)
 
@@ -120,6 +122,7 @@ for epoch in range(int(config["hyperparams"]["NUM_EPOCHS"])):
     changenet = changenet.train()
 
     for idx, (pretiles, posttiles, prelabels, postlabels) in enumerate(trainloader):
+        #break
         pretiles_batch = torch.cat(pretiles, dim=0).to(gpu1)
         posttiles_batch = torch.cat(posttiles, dim=0).to(gpu1)
 
@@ -132,8 +135,8 @@ for epoch in range(int(config["hyperparams"]["NUM_EPOCHS"])):
         pre_seg = logits_to_probs(pre_seg, channel_dimension=1)
         post_seg = logits_to_probs(post_seg, channel_dimension=1)
 
-        pre_features = layer1_features(pretiles_batch)
-        post_features = layer1_features(posttiles_batch)
+        pre_features = layer1_features(pretiles_batch).cpu()
+        post_features = layer1_features(posttiles_batch).cpu()
 
         change_input = torch.cat((pre_seg, post_seg, pre_features, post_features), dim=1).to(gpu0)
 
@@ -167,20 +170,24 @@ for epoch in range(int(config["hyperparams"]["NUM_EPOCHS"])):
     changenet = changenet.eval()
 
     for idx, (pretiles, posttiles, prelabels, postlabels) in enumerate(valloader):
-        pretiles_batch = torch.cat(pretiles, dim=0).to(gpu1)
-        posttiles_batch = torch.cat(posttiles, dim=0).to(gpu1)
+        #pretiles_batch = torch.cat(pretiles, dim=0).to(gpu1)
+        #posttiles_batch = torch.cat(posttiles, dim=0).to(gpu1)
+        pretiles_batch = pretiles[0].to(gpu1)
+        posttiles_batch = posttiles[0].to(gpu1)
         segmentations = semseg_model(torch.cat((pretiles_batch, posttiles_batch), dim=0))['out'].cpu()
 
-        pre_seg = logits_to_probs(segmentations[:BATCH_SIZE, :, :, :], channel_dimension=1)
-        post_seg = logits_to_probs(segmentations[BATCH_SIZE:, :, :, :], channel_dimension=1)
+        #pre_seg = logits_to_probs(segmentations[:BATCH_SIZE, :, :, :], channel_dimension=1)
+        #post_seg = logits_to_probs(segmentations[BATCH_SIZE:, :, :, :], channel_dimension=1)
 
-        pre_features = layer1_features(pretiles_batch)
-        post_features = layer1_features(posttiles_batch)
+        pre_seg = logits_to_probs(segmentations[:1, :, :, :], channel_dimension=1)
+        post_seg = logits_to_probs(segmentations[1:, :, :, :], channel_dimension=1)
+        pre_features = layer1_features(pretiles_batch).cpu()
+        post_features = layer1_features(posttiles_batch).cpu()
 
         change_input = torch.cat((pre_seg, post_seg, pre_features, post_features), dim=1).to(gpu0)
 
         with torch.set_grad_enabled(False):
-            preds = changenet(change_input).cpu()
+            preds = changenet(change_input).cpu()[0,:,:,:]
 
             # Write to disk for visually tracking training progress
             save_path = "val_results/" + config_name + "/" + str(idx) + "/"
@@ -189,8 +196,8 @@ for epoch in range(int(config["hyperparams"]["NUM_EPOCHS"])):
 
             # Save groundtruth
             if epoch == 0:  # Groundtruth only needs to be saved once
-                save_val_gt(save_path, pretiles[0], posttiles[0], prelabels[0], postlabels[0], 512)
-                save_val_seg(save_path, pre_seg, post_seg)
+                save_val_gt(save_path, pretiles[0], posttiles[0], prelabels[0], postlabels[0], 1024)
+                save_val_seg(save_path, pre_seg[0], post_seg[0])
 
             # Save model
             if epoch % config["misc"]["SAVE_FREQ"] == 0:
