@@ -8,13 +8,20 @@ import tqdm
 import torch
 from torchvision.models.segmentation import deeplabv3_resnet50
 from torchvision.utils import save_image
+import torch.optim as optim
 
 import torch.nn as nn
 import torch.nn.functional as F
 
+
+from losses import localization_aware_loss, cross_entropy
 from config_parser import read_config
 from utils import clean_distributed_state_dict
 from dataset import xview_train_loader_factory
+from utils import logits_to_probs
+from train_utils import save_model, save_val_results, save_val_gt, save_val_seg
+from logger import MetricLog
+from metrics import AverageMeter
 
 class FeaturesModel(nn.Module):
     def __init__(self, weight):
@@ -68,6 +75,8 @@ changenet = RegressChangeNet()
 for p in changenet.parameters():
     p.requires_grad = True
 changenet.to(gpu0)
+
+BATCH_SIZE = config["dataloader"]["BATCH_SIZE"]
 trainloader, _, _ = xview_train_loader_factory("change",
                                             config["paths"]["XVIEW_ROOT"],
                                             config["dataloader"]["DATA_VERSION"],
@@ -113,14 +122,21 @@ for epoch in range(int(config["hyperparams"]["NUM_EPOCHS"])):
     for idx, (pretiles, posttiles, prelabels, postlabels) in enumerate(trainloader):
         pretiles_batch = torch.cat(pretiles, dim=0).to(gpu1)
         posttiles_batch = torch.cat(posttiles, dim=0).to(gpu1)
+
         prelabels_batch = torch.cat(prelabels, dim=0)
         postlabels_batch = torch.cat(postlabels, dim=0)
-        pre_seg = semseg_model(pretiles_batch)['out']
-        post_seg = semseg_model(posttiles_batch)['out']
-        # TODO Logits to probs for batch
+
+        pre_seg = semseg_model(pretiles_batch)['out'].cpu()
+        post_seg = semseg_model(posttiles_batch)['out'].cpu()
+
+        pre_seg = logits_to_probs(pre_seg, channel_dimension=1)
+        post_seg = logits_to_probs(post_seg, channel_dimension=1)
+
         pre_features = layer1_features(pretiles_batch)
         post_features = layer1_features(posttiles_batch)
-        change_input = torch.cat((pre_seg, post_seg, pre_features, post_features), dim=1)
+
+        change_input = torch.cat((pre_seg, post_seg, pre_features, post_features), dim=1).to(gpu0)
+
         optimizer.zero_grad()
         with torch.set_grad_enabled(True):
             preds = changenet(change_input).cpu()
@@ -154,14 +170,31 @@ for epoch in range(int(config["hyperparams"]["NUM_EPOCHS"])):
         pretiles_batch = torch.cat(pretiles, dim=0).to(gpu1)
         posttiles_batch = torch.cat(posttiles, dim=0).to(gpu1)
         segmentations = semseg_model(torch.cat((pretiles_batch, posttiles_batch), dim=0))['out'].cpu()
-        # TODO Complete this
 
+        pre_seg = logits_to_probs(segmentations[:BATCH_SIZE, :, :, :], channel_dimension=1)
+        post_seg = logits_to_probs(segmentations[BATCH_SIZE:, :, :, :], channel_dimension=1)
 
+        pre_features = layer1_features(pretiles_batch)
+        post_features = layer1_features(posttiles_batch)
 
+        change_input = torch.cat((pre_seg, post_seg, pre_features, post_features), dim=1).to(gpu0)
 
+        with torch.set_grad_enabled(False):
+            preds = changenet(change_input).cpu()
 
+            # Write to disk for visually tracking training progress
+            save_path = "val_results/" + config_name + "/" + str(idx) + "/"
+            pathlib.Path(save_path).mkdir(parents=True, exist_ok=True)
+            save_val_results(save_path, epoch, config["hyperparams"]["LOSS"], preds, preds, tiled=False)
 
+            # Save groundtruth
+            if epoch == 0:  # Groundtruth only needs to be saved once
+                save_val_gt(save_path, pretiles[0], posttiles[0], prelabels[0], postlabels[0], 512)
+                save_val_seg(save_path, pre_seg, post_seg)
 
+            # Save model
+            if epoch % config["misc"]["SAVE_FREQ"] == 0:
+                save_model(changenet.state_dict(), MODELS_FOLDER, epoch)
 
 
 # print(layer1_weights.shape)
