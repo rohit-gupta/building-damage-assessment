@@ -43,7 +43,7 @@ class RegressChangeNet(nn.Module):
                                kernel_size=5, stride=1, padding=0, dilation=5,
                                groups=1, bias=False, padding_mode='zeros')
 
-        nn.init.kaiming_uniform_(self.conv.weight)
+        nn.init.kaiming_uniform_(self.conv1.weight)
 
     def forward(self, x):
         return self.conv1(x)
