@@ -78,7 +78,7 @@ trainloader, train_sampler = xview_train_loader_factory("segmentation",
                                                         config["dataloader"]["DATA_VERSION"],
                                                         config["dataloader"]["USE_TIER3_TRAIN"],
                                                         config["dataloader"]["CROP_SIZE"],
-                                                        config["dataloader"]["TILE_SIZE"],
+                                                        -1,
                                                         config["dataloader"]["BATCH_SIZE"],
                                                         config["dataloader"]["THREADS"],
                                                         args.distributed)
