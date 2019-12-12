@@ -85,7 +85,7 @@ trainloader, train_sampler = xview_train_loader_factory("segmentation",
 
 valloader = xview_val_loader_factory(config["paths"]["XVIEW_ROOT"],
                                      config["dataloader"]["DATA_VERSION"],
-                                     config["dataloader"]["BATCH_SIZE"])
+                                     1)
 
 if "finetune" in config_name:
     model_checkpoint = config["paths"]["MODELS"] + config["paths"]["BEST_MODEL"]
