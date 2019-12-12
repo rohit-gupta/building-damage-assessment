@@ -21,7 +21,7 @@ from apex.parallel import DistributedDataParallel as DDP, convert_syncbn_model
 from dsilva_metrics.iou import IoU
 from logger import MetricLog
 from metrics import AverageMeter
-from dataset import xview_train_loader_factory
+from dataset import xview_train_loader_factory, xview_val_loader_factory
 
 from train_utils import save_val_results, save_val_gt
 from utils import reduce_tensor, clean_distributed_state_dict
@@ -73,15 +73,19 @@ ACTUAL_SIZE = 1024
 NUM_TILES = ACTUAL_SIZE // config["dataloader"]["TILE_SIZE"]
 NUM_TILES *= NUM_TILES
 # create dataloader
-trainloader, valloader, train_sampler = xview_train_loader_factory("segmentation",
-                                                                   config["paths"]["XVIEW_ROOT"],
-                                                                   config["dataloader"]["DATA_VERSION"],
-                                                                   config["dataloader"]["USE_TIER3_TRAIN"],
-                                                                   config["dataloader"]["CROP_SIZE"],
-                                                                   config["dataloader"]["TILE_SIZE"],
-                                                                   config["dataloader"]["BATCH_SIZE"],
-                                                                   config["dataloader"]["THREADS"],
-                                                                   args.distributed)
+trainloader, train_sampler = xview_train_loader_factory("segmentation",
+                                                        config["paths"]["XVIEW_ROOT"],
+                                                        config["dataloader"]["DATA_VERSION"],
+                                                        config["dataloader"]["USE_TIER3_TRAIN"],
+                                                        config["dataloader"]["CROP_SIZE"],
+                                                        config["dataloader"]["TILE_SIZE"],
+                                                        config["dataloader"]["BATCH_SIZE"],
+                                                        config["dataloader"]["THREADS"],
+                                                        args.distributed)
+
+valloader = xview_val_loader_factory(config["paths"]["XVIEW_ROOT"],
+                                     config["dataloader"]["DATA_VERSION"],
+                                     config["dataloader"]["BATCH_SIZE"])
 
 if "finetune" in config_name:
     model_checkpoint = config["paths"]["MODELS"] + config["paths"]["BEST_MODEL"]
@@ -242,8 +246,8 @@ for epoch in range(int(config["hyperparams"]["NUM_EPOCHS"])):
             with torch.set_grad_enabled(False):
                 pred_segmentations = semseg_model(torch.cat((pretiles[0], posttiles[0]), dim=0))['out']
                 gt_segmentations = torch.cat((prelabels[0], postlabels[0]), dim=0)
-                pre_preds = pred_segmentations[:NUM_TILES, :, :, :]
-                post_preds = pred_segmentations[NUM_TILES:, :, :, :]
+                pre_preds = pred_segmentations[0, :, :, :]
+                post_preds = pred_segmentations[1, :, :, :]
 
                 # Compute metrics
                 if config["hyperparams"]["LOSS"] == "locaware":
@@ -267,11 +271,11 @@ for epoch in range(int(config["hyperparams"]["NUM_EPOCHS"])):
                              config["hyperparams"]["LOSS"],
                              pre_preds, post_preds,
                              tiled=True,
-                             tile_size=config["dataloader"]["TILE_SIZE"])
+                             tile_size=1024)
 
             # Groundtruth only needs to be saved once
             if epoch == 0:
-                save_val_gt(save_path, pretiles[0], posttiles[0], prelabels[0], postlabels[0], config["dataloader"]["TILE_SIZE"])
+                save_val_gt(save_path, pretiles[0], posttiles[0], prelabels[0], postlabels[0], 1024)
             val_pbar.update(1)
 
         # End of val phase

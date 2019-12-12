@@ -288,18 +288,12 @@ def xview_train_loader_factory(mode, xview_root, data_version, use_tier3,
         train_tile_size = -1
         train_crop_size = crop_size
         train_collate_fn = batch_collate_fn
-        val_tile_size = tile_size
-        val_crop_size = 1024
-        val_batch_size = 1
         use_scale_jitter = True
     elif mode == "change":
         train_mode = "tiles"
         train_tile_size = tile_size
         train_crop_size = crop_size
         train_collate_fn = tiles_collate_fn
-        val_tile_size = tile_size
-        val_crop_size = 1024
-        val_batch_size = batch_size
         use_scale_jitter = False
 
     train_set = xviewDataset(train_data, mode=train_mode, load_segmaps=True,
@@ -308,28 +302,36 @@ def xview_train_loader_factory(mode, xview_root, data_version, use_tier3,
                              flips=True, scale_jitter=use_scale_jitter, color_jitter=True,
                              erase=False, noise=False, distort=False)
 
-    val_set = xviewDataset(val_data, mode="tiles", load_segmaps=True,
-                           actual_size=1024, crop_size=val_crop_size, tile_size=val_tile_size,
-                           shuffle=False)
-
     train_sampler = None
-    val_sampler = None
-
     if distributed:
         train_sampler = torch.utils.data.distributed.DistributedSampler(train_set)
-        # val_sampler = torch.utils.data.distributed.DistributedSampler(val_set)
 
     train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=(train_sampler is None),
                               collate_fn=train_collate_fn, num_workers=num_workers,
                               sampler=train_sampler,
                               pin_memory=True)
 
-    val_loader = DataLoader(val_set, batch_size=val_batch_size, shuffle=False,
+    return train_loader, train_sampler
+
+
+def xview_val_loader_factory(xview_root, data_version, batch_size):
+    # Read metadata
+    _, val_data, _ = load_xview_metadata(xview_root, data_version, False)
+
+    # print("Train images:", len(train_data))
+    # print("Validation images:", len(val_data))
+    # print("Test images:", len(test_data))
+
+    val_set = xviewDataset(val_data, mode="tiles", load_segmaps=True,
+                           actual_size=1024, crop_size=1024, tile_size=1024,
+                           shuffle=False)
+
+    val_loader = DataLoader(val_set, batch_size=batch_size, shuffle=False,
                             collate_fn=tiles_collate_fn, num_workers=1,
-                            sampler=val_sampler,
                             pin_memory=True)
 
-    return train_loader, val_loader, train_sampler
+    return val_loader
+
 
 
 def xview_test_loader_factory(xview_root, tile_size):
