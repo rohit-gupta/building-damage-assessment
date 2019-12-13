@@ -86,13 +86,16 @@ trainloader, train_sampler = xview_train_loader_factory("segmentation",
 valloader = xview_val_loader_factory(config["paths"]["XVIEW_ROOT"],
                                      config["dataloader"]["DATA_VERSION"],
                                      1)
-
+INITIAL_EPOCH = 0
 if "finetune" in config_name:
     model_checkpoint = config["paths"]["MODELS"] + config["paths"]["BEST_MODEL"]
+    checkpoint_config = config["paths"]["BEST_MODEL"].split("/")[0]
     state_dict = torch.load(model_checkpoint)
     # Clean distributed state dict is idempotent
     semseg_model.load_state_dict(clean_distributed_state_dict(state_dict))
     print("Loading weights from", model_checkpoint)
+    if checkpoint_config == config_name:
+        INITIAL_EPOCH = int(config["paths"]["BEST_MODEL"].split("/")[-1].split(".")[0])
 
 if args.distributed:
     semseg_model = convert_syncbn_model(semseg_model)
@@ -134,7 +137,7 @@ if args.local_rank == 1:
     val_mIoU_log = MetricLog("val_mIoU")
     val_localization_IoU_log = MetricLog("val_localization_IoU")
 
-for epoch in range(int(config["hyperparams"]["NUM_EPOCHS"])):
+for epoch in range(INITIAL_EPOCH, INITIAL_EPOCH + int(config["hyperparams"]["NUM_EPOCHS"])):
 
     print("Beginning Epoch #" + str(epoch) + ":\n")
 
