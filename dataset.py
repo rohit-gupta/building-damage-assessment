@@ -277,7 +277,7 @@ def xview_train_loader_factory(mode, xview_root, data_version, use_tier3,
                                crop_size, tile_size,
                                batch_size, num_workers, distributed):
     # Read metadata
-    train_data, val_data, _ = load_xview_metadata(xview_root, data_version, use_tier3)
+    train_data, _, _ = load_xview_metadata(xview_root, data_version, use_tier3)
 
     # print("Train images:", len(train_data))
     # print("Validation images:", len(val_data))

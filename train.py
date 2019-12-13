@@ -270,8 +270,7 @@ for epoch in range(int(config["hyperparams"]["NUM_EPOCHS"])):
             save_val_results(save_path, epoch,
                              config["hyperparams"]["LOSS"],
                              pre_preds, post_preds,
-                             tiled=True,
-                             tile_size=1024)
+                             tiled=False)
 
             # Groundtruth only needs to be saved once
             if epoch == 0:
