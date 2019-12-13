@@ -287,6 +287,15 @@ for epoch in range(int(config["hyperparams"]["NUM_EPOCHS"])):
         val_mIoU_log.update(val_miou)
 
         val_pbar.close()
+        del pretiles[0]
+        del posttiles[0]
+        del prelabels[0]
+        del postlabels[0]
+        del pred_segmentations
+        del gt_segmentations
+        del pre_preds
+        del post_preds
+
 
         if epoch % config["misc"]["SAVE_FREQ"] == 0:
             models_folder = config["paths"]["MODELS"] + config_name + "/"

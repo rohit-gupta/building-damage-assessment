@@ -25,10 +25,11 @@ def localization_aware_loss(gt_segmaps, pred_segmaps, loc_wt, cls_wt, gamma=0.0,
 
     # Damage classification for foreground only
     gt_foreground_mask = torch.repeat_interleave(1.0 - gt_background, repeats=4, dim=1) # CLS Loss only for foreground
-    count_fg = torch.sum(1.0 - gt_background)
+    count_fg = torch.sum(1.0 - gt_background) + 1.0 
     # fg_scale = torch.clamp((gt_segmaps.shape[-1] * gt_segmaps.shape[-2])/count_fg, min=1.0, max=(gt_segmaps.shape[-1] * gt_segmaps.shape[-2])/(8*8))  # (WxH)
-    tile_area_tensor = torch.tensor((tile_size * tile_size)).to(gt_segmaps.dtype)
-    fg_fraction = tile_area_tensor / count_fg
+    #tile_area_tensor = torch.tensor((tile_size * tile_size)).to(gt_segmaps.dtype)
+    tile_area = tile_size * tile_size
+    fg_fraction = tile_area / count_fg
     fg_scale = torch.clamp(fg_fraction, min=1.0, max=(tile_size * tile_size) / (16 * 16))  # max = 1024.0 if tile_size = 512.0
     cls_loss = fg_scale * cross_entropy(gt_foreground_mask * gt_classes, gt_foreground_mask * pred_classes)
 
@@ -45,3 +46,4 @@ def focal_loss(gt_segmaps, pred_segmaps, gamma):
     weight = torch.pow(torch.tensor(1.) - p, gamma)
     focal = -weight * log_p
     return torch.mean(torch.sum(gt_segmaps * focal, dim=1)) # Sum across C, mean across H, W and N
+
