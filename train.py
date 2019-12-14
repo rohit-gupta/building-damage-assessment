@@ -95,7 +95,7 @@ if "finetune" in config_name:
     semseg_model.load_state_dict(clean_distributed_state_dict(state_dict))
     print("Loading weights from", model_checkpoint)
     if checkpoint_config == config_name:
-        INITIAL_EPOCH = int(config["paths"]["BEST_MODEL"].split("/")[-1].split(".")[0])
+        INITIAL_EPOCH = int(config["paths"]["BEST_MODEL"].split("/")[-1].split(".")[0]) + 1 
 
 if args.distributed:
     semseg_model = convert_syncbn_model(semseg_model)

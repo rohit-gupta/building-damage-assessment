@@ -35,3 +35,5 @@ semseg_model = deeplabv3_resnet50(pretrained=False,
 state_dict = clean_distributed_state_dict(torch.load(config["change"]["SEG_MODEL"], map_location=lambda storage, location: storage))
 semseg_model.load_state_dict(state_dict)
 
+layer1_weights = semseg_model.backbone.conv1.weight
+layer1_features = FeaturesModel(layer1_weights)
