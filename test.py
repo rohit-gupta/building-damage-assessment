@@ -16,10 +16,10 @@ from torchvision.models.segmentation import deeplabv3_resnet50
 import torch
 
 from dataset import xview_test_loader_factory
-from utils import input_tensor_to_pil_img
-from utils import logits_to_probs, postprocess_segmap_tensor_to_pil_img, postprocess_combined_predictions
-from utils import reconstruct_from_tiles
-from utils import clean_distributed_state_dict
+from utils.post_processing import input_tensor_to_pil_img
+from utils.post_processing import logits_to_probs, postprocess_segmap_tensor_to_pil_img, postprocess_combined_predictions
+from utils.post_processing import reconstruct_from_tiles
+from utils.misc import clean_distributed_state_dict
 
 # Configuration
 import configparser

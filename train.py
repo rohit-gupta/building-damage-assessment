@@ -23,8 +23,8 @@ from logger import MetricLog
 from metrics import AverageMeter
 from dataset import xview_train_loader_factory, xview_val_loader_factory
 
-from train_utils import save_val_results, save_val_gt
-from utils import reduce_tensor, clean_distributed_state_dict
+from utils.train import save_val_results, save_val_gt
+from utils.misc import reduce_tensor, clean_distributed_state_dict
 from losses import cross_entropy, localization_aware_loss
 
 
@@ -110,7 +110,7 @@ elif config["hyperparams"]["OPTIMIZER"] == "SGD":
                           momentum=config["hyperparams"]["MOMENTUM"],
                           weight_decay=config["hyperparams"]["WEIGHT_DECAY"])
 elif config["hyperparams"]["OPTIMIZER"] == "ASGD":
-    optimizer = optim.SGD(semseg_model.parameters(),
+    optimizer = optim.ASGD(semseg_model.parameters(),
                           lr=config["hyperparams"]["INITIAL_LR"],
                           to=1e5,
                           weight_decay=config["hyperparams"]["WEIGHT_DECAY"])

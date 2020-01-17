@@ -1,11 +1,19 @@
+#!/usr/bin/env python3
+"""
+Utility functions for use during training
+"""
+
+__author__ = "Rohit Gupta"
+__version__ = "dev"
+__license__ = None
 
 import pathlib
 import torch
 
-from utils import reconstruct_from_tiles
-from utils import logits_to_probs
-from utils import postprocess_segmap_tensor_to_pil_img, postprocess_combined_predictions, bg_prob_levels_img, fg_cls_img
-from utils import input_tensor_to_pil_img, segmap_tensor_to_pil_img
+from post_processing import reconstruct_from_tiles
+from post_processing import logits_to_probs
+from post_processing import postprocess_segmap_tensor_to_pil_img, postprocess_combined_predictions, bg_prob_levels_img, fg_cls_img
+from post_processing import input_tensor_to_pil_img, segmap_tensor_to_pil_img
 
 def save_model(state_dict, path, epoch):
     torch.save(state_dict, path + str(epoch) + ".pth")
