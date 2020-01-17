@@ -178,16 +178,11 @@ for epoch in range(INITIAL_EPOCH, INITIAL_EPOCH + int(config["hyperparams"]["NUM
             if config["hyperparams"]["LOSS"] == "crossentropy":
                 loss = cross_entropy(segmaps, pred_segmaps)
             elif config["hyperparams"]["LOSS"] == "locaware":
-                if config["hyperparams"]["LOC_LOSS"] == "focal":
-                    loc_loss, cls_loss, loss = localization_aware_loss(segmaps, pred_segmaps,
-                                                                       config["hyperparams"]["LOC_WEIGHT"],
-                                                                       config["hyperparams"]["CLS_WEIGHT"],
-                                                                       gamma=config["hyperparams"]["FOCAL_GAMMA"])
-                elif config["hyperparams"]["LOC_LOSS"] == "bce":
-                    loc_loss, cls_loss, loss = localization_aware_loss(segmaps, pred_segmaps,
-                                                                       config["hyperparams"]["LOC_WEIGHT"],
-                                                                       config["hyperparams"]["CLS_WEIGHT"],
-                                                                       gamma=0.0)
+                loc_loss, cls_loss, loss = localization_aware_loss(segmaps, pred_segmaps,
+                                                                   config["hyperparams"]["LOC_WEIGHT"],
+                                                                   config["hyperparams"]["CLS_WEIGHT"],
+                                                                   loc_loss_type=config["hyperparams"]["LOC_LOSS"],
+                                                                   gamma=config["hyperparams"]["FOCAL_GAMMA"])
 
             if config["misc"]["APEX_OPT_LEVEL"] != "None":
                 with amp.scale_loss(loss, optimizer) as scaled_loss:
@@ -290,14 +285,10 @@ for epoch in range(INITIAL_EPOCH, INITIAL_EPOCH + int(config["hyperparams"]["NUM
         val_mIoU_log.update(val_miou)
 
         val_pbar.close()
-        del pretiles[0]
-        del posttiles[0]
-        del prelabels[0]
-        del postlabels[0]
-        del pred_segmentations
-        del gt_segmentations
-        del pre_preds
-        del post_preds
+        
+        del pretiles[0], posttiles[0], prelabels[0], postlabels[0]
+        del pred_segmentations, gt_segmentations, pre_preds, post_preds
+
 
 
         if epoch % config["misc"]["SAVE_FREQ"] == 0:
