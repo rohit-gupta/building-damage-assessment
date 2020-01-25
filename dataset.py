@@ -16,9 +16,9 @@ from torchvision import transforms
 from torch.utils.data import DataLoader
 from torch.utils.data.dataset import Dataset
 
-from utils import load_xview_metadata
-from utils import read_labels_file, labels_to_segmentation_map
-from utils import spatial_label_smoothing
+from utils.dataset import load_xview_metadata
+from utils.dataset import read_labels_file, labels_to_segmentation_map
+from utils.dataset import spatial_label_smoothing
 
 # μ and σ for xview dataset
 MEANS = [0.309, 0.340, 0.255]
