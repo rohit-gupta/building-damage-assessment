@@ -40,7 +40,7 @@ def EMSG(errtype="ERROR"):
     previous_frame = inspect.currentframe().f_back
     _, _, fname, _, _ = inspect.getframeinfo(previous_frame)
 
-    return errtype + " in function " + fname
+    return errtype + " in function " + fname + " :"
 
 
 def clean_distributed_state_dict(distributed_state_dict):

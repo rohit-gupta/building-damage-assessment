@@ -89,6 +89,7 @@ class xviewDataset(Dataset):
 
         if self.scale_jitter:
             chosen_scale = random.choice([0.5, None, None, None, None, None, None, 2.0]) # Use 1x images 75% of the time
+            # chosen_scale = None
         else:
             chosen_scale = None
         pre_image = self.__readimg(x["pre_image_file"], chosen_scale)
@@ -108,7 +109,8 @@ class xviewDataset(Dataset):
 
             pre_segmap = torch.from_numpy(pre_segmap).to(torch.float32)
             post_segmap = torch.from_numpy(post_segmap).to(torch.float32)
-
+        
+        
         if self.mode == "batch" and self.load_segmaps:  # train-seg mode
             img1, segmap1, img2, segmap2 = self.__augment(pre_image,
                                                           pre_segmap,
@@ -131,8 +133,15 @@ class xviewDataset(Dataset):
 
     def __readlabels(self, label_file, scale):
 
+        # print("Loading segmap", label_file)
+
         labels_data = read_labels_file(label_file)
+
+        # print("Read segmap file", labels_data)
         segmap = labels_to_segmentation_map(labels_data, scale)
+
+
+        # print("Loaded segmap of size", segmap.shape)
 
         return segmap
 
@@ -148,10 +157,10 @@ class xviewDataset(Dataset):
         return img_tensor
 
     def __augment(self, pre_img, pre_segmap, post_img, post_segmap):
-
         # Assuming everything is square
         x0, y0, x1, y1 = get_rand_crops(pre_img.shape[-1], self.crop_size)
         # Tensors are NCHW, x is column number in numpy notation
+
         cropped_pre_img = pre_img[:, x0:x1, y0:y1]
         cropped_post_img = post_img[:, x0:x1, y0:y1]
 

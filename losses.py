@@ -11,22 +11,30 @@ def cross_entropy(gt_segmaps, pred_segmaps):
                      )
 
 
-def localization_aware_loss(gt_segmaps, pred_segmaps, loc_wt, cls_wt, loc_loss_type= "bce", gamma=0.0, tile_size=512.0):
+def localization_aware_loss(gt_segmaps, pred_segmaps, loc_wt, cls_wt, loc_loss_type= "bce", loc_ce_wt=1.0, loc_oth_wt=1.0, gamma=0.0, tile_size=512.0):
     gt_background, gt_classes = torch.split(gt_segmaps, [1,4], dim=1)
     pred_background, pred_classes = torch.split(pred_segmaps, [1, 4], dim=1)
 
     # Building footprint localization
-    if loc_loss_type == "bce":  # Use binary cross entropy loss
-        binary_cross_entropy = nn.BCEWithLogitsLoss()
-        loc_loss = binary_cross_entropy(pred_background, gt_background)
+    # Localization binary cross entropy loss
+    binary_cross_entropy = nn.BCEWithLogitsLoss()
+    loc_ce_loss = binary_cross_entropy(pred_background, gt_background)
+    if loc_loss_type == "bce":  # Use 
+        loc_loss = loc_ce_loss
     else:
+        loc_loss = loc_ce_wt * loc_ce_loss
+        
         pred_background = torch.sigmoid(pred_background)
         gt_bg_2class = torch.cat((gt_background, 1. - gt_background), dim=1)
         pred_bg_2class = torch.cat((pred_background, 1. - pred_background), dim=1)
+        
         if loc_loss_type == "focal":
-            loc_loss = focal_loss(gt_bg_2class, pred_bg_2class, gamma)
+            loc_loss += loc_oth_wt * focal_loss(gt_bg_2class, pred_bg_2class, gamma)
         elif loc_loss_type == "dice":
-            loc_loss = dice_loss(gt_bg_2class, pred_bg_2class)
+            loc_loss += loc_oth_wt * dice_loss(gt_bg_2class, pred_bg_2class)
+            # loc_loss = dice_loss(gt_bg_2class, pred_bg_2class)
+        
+        
 
     # Damage classification for foreground only
     gt_foreground_mask = torch.repeat_interleave(1.0 - gt_background, repeats=4, dim=1) # CLS Loss only for foreground
@@ -38,14 +46,13 @@ def localization_aware_loss(gt_segmaps, pred_segmaps, loc_wt, cls_wt, loc_loss_t
     fg_scale = torch.clamp(fg_fraction, min=1.0, max=(tile_size * tile_size) / (64 * 64))  # max = 64.0 if tile_size = 512.0
     cls_loss = fg_scale * cross_entropy(gt_foreground_mask * gt_classes, gt_foreground_mask * pred_classes)
 
-    return loc_loss, cls_loss, loc_wt * loc_loss + cls_wt * cls_loss
+    return loc_loss, loc_ce_loss, cls_loss, loc_wt * loc_loss + cls_wt * cls_loss
 
 
 def focal_loss(gt_segmaps, pred_segmaps, gamma):
-    # gamma = torch.tensor(gamma)
+
     logsoftmax = nn.LogSoftmax(dim=1)
 
-    # p = F.softmax(pred_segmaps, dim=1)
     p = pred_segmaps
     log_p = logsoftmax(pred_segmaps)
 
@@ -56,7 +63,6 @@ def focal_loss(gt_segmaps, pred_segmaps, gamma):
 
 
 def dice_loss(gt_segmaps, pred_segmaps):
-    # pred_probs = F.softmax(pred_segmaps, dim=1)
     pred_probs = pred_segmaps
     
     # compute the dice loss

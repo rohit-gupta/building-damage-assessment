@@ -18,10 +18,19 @@ def str2intarr(v):
   return [int(x) for x in v.split(" ")]
 
 type_map = {
+    "arch": {
+        "TASK": str, # SEG, CHANGE, COMBINED
+        "BACKBONE": str,  # ResNet18/34/50
+        "META_ARCH": str,  #DeepLabv3/DeepLabv3+
+        "OUTPUT_STRIDE": int,
+        
+    },
     "hyperparams": {
         "LOSS": str,
         "LOC_LOSS": str,
         "LOC_WEIGHT": float,
+        "LOC_CE_WEIGHT": float,
+        "LOC_OTH_WEIGHT": float,
         "CLS_WEIGHT": float,
         "FOCAL_GAMMA": float,
         "NUM_EPOCHS": int,

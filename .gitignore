@@ -13,7 +13,9 @@ scores/
 val_results/
 test_results/
 masks_to_polygons/
-
+docker/data/
+# vscode files
+.vscode/
 # Libreoffice lock files
 .~lock.*
 

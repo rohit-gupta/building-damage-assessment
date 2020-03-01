@@ -13,6 +13,7 @@ import orjson as json
 import scipy.ndimage
 import numpy as np
 import shapely
+from shapely.geometry import mapping
 import shapely.wkt
 from skimage.draw import polygon, polygon_perimeter
 
@@ -51,7 +52,8 @@ def labels_to_segmentation_map(labels_data, scale=None):
         scaled_H = H
         scaled_W = W
     segmap = np.zeros((5, scaled_H, scaled_W), dtype=np.uint8)
-    for annotated_object in labels_data:
+    tot = len(labels_data)
+    for itr, annotated_object in enumerate(labels_data):
         shp = shapely.wkt.loads(annotated_object['wkt'])
         pts = list(shp.exterior.coords)
         if scale:
