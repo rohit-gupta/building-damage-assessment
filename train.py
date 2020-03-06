@@ -79,6 +79,7 @@ semseg_model = semseg_model.cuda()
 ACTUAL_SIZE = 1024
 NUM_TILES = ACTUAL_SIZE // config["dataloader"]["TILE_SIZE"]
 NUM_TILES *= NUM_TILES
+VAL_BATCH_SIZE = 16
 # create dataloader
 trainloader, train_sampler = xview_train_loader_factory("segmentation",
                                                         config["paths"]["XVIEW_ROOT"],
@@ -91,7 +92,7 @@ trainloader, train_sampler = xview_train_loader_factory("segmentation",
                                                         args.distributed)
 valloader = xview_val_loader_factory(config["paths"]["XVIEW_ROOT"],
                                      config["dataloader"]["DATA_VERSION"],
-                                     1)
+                                     VAL_BATCH_SIZE)
 INITIAL_EPOCH = 0
 if "finetune" in config_name:
     model_checkpoint = config["paths"]["MODELS"] + config["paths"]["BEST_MODEL"]
@@ -244,24 +245,22 @@ for epoch in range(INITIAL_EPOCH, INITIAL_EPOCH + int(config["hyperparams"]["NUM
         train_pbar.close()
 
         # Validation Phase of epoch
-        # Assume batch_size = 1 (higher sizes are impractical)
-
         val_pbar = tqdm.tqdm(total=len(valloader))
         semseg_model.eval()
         for idx, (pretiles, posttiles, prelabels, postlabels) in enumerate(valloader):
             n_val = len(pretiles)
 
-            pretiles[0] = pretiles[0].cuda()
-            posttiles[0] = posttiles[0].cuda()
+            pretiles = torch.cat(pretiles, dim=0).cuda()
+            posttiles = torch.cat(posttiles, dim=0).cuda()
 
-            prelabels[0] = prelabels[0].cuda()
-            postlabels[0] = postlabels[0].cuda()
+            prelabels = torch.cat(prelabels, dim=0).cuda()
+            postlabels = torch.cat(postlabels, dim=0).cuda()
 
             with torch.set_grad_enabled(False):
-                pred_segmentations = semseg_model(torch.cat((pretiles[0], posttiles[0]), dim=0))['out']
-                gt_segmentations = torch.cat((prelabels[0], postlabels[0]), dim=0)
-                pre_preds = pred_segmentations[0, :, :, :]
-                post_preds = pred_segmentations[1, :, :, :]
+                pred_segmentations = semseg_model(torch.cat((pretiles, posttiles), dim=0))['out']
+                gt_segmentations = torch.cat((prelabels, postlabels), dim=0)
+                pre_preds = pred_segmentations[:VAL_BATCH_SIZE//2, :, :, :]
+                post_preds = pred_segmentations[VAL_BATCH_SIZE//2:, :, :, :]
 
                 # Compute metrics
                 if config["hyperparams"]["LOSS"] == "locaware":
@@ -278,32 +277,30 @@ for epoch in range(INITIAL_EPOCH, INITIAL_EPOCH + int(config["hyperparams"]["NUM
                 elif config["hyperparams"]["LOSS"] == "crossentropy":
                     val_loss_val = cross_entropy(gt_segmentations, pred_segmentations)
 
-                val_loss.update(val=val_loss_val.item(), n=1)
+                val_loss.update(val=val_loss_val.item(), n=VAL_BATCH_SIZE)
 
-                gt_classid = gt_segmentations.argmax(1)
-                val_iou.add(pred_segmentations.detach(), gt_classid.detach())
+                # gt_classid = gt_segmentations.argmax(1)
+                # val_iou.add(pred_segmentations.detach(), gt_classid.detach())
 
             # Write to disk for visually tracking training progress
-            save_path = "val_results/" + config_name + "/" + str(idx) + "/"
-            pathlib.Path(save_path).mkdir(parents=True, exist_ok=True)
-            save_val_results(save_path, epoch,
-                             config["hyperparams"]["LOSS"],
-                             pre_preds, post_preds,
-                             tiled=False)
-
-            # Groundtruth only needs to be saved once
-            if epoch == 0:
-                save_val_gt(save_path, pretiles[0], posttiles[0], prelabels[0], postlabels[0], 1024)
+            for i in range(VAL_BATCH_SIZE):
+                save_path = "val_results/" + config_name + "/" + str(idx + i) + "/"
+                pathlib.Path(save_path).mkdir(parents=True, exist_ok=True)
+                save_val_results(save_path, epoch, config["hyperparams"]["LOSS"], pre_preds[i], post_preds[i], tiled=False)
+                # Groundtruth only needs to be saved once
+                if epoch == 0:
+                    save_val_gt(save_path, pretiles[i], posttiles[i], prelabels[i], postlabels[i], 1024)
+            
             val_pbar.update(1)
 
         # End of val phase
-        (val_iou_list, val_miou) = val_iou.value()
-        val_localization_iou = val_iou_list[0]
-        val_miou = val_miou
+        # (val_iou_list, val_miou) = val_iou.value()
+        # val_localization_iou = val_iou_list[0]
+        # val_miou = val_miou
 
         val_loss_log.update(val_loss.value())
-        val_localization_IoU_log.update(val_localization_iou)
-        val_mIoU_log.update(val_miou)
+        # val_localization_IoU_log.update(val_localization_iou)
+        # val_mIoU_log.update(val_miou)
 
         val_pbar.close()
         

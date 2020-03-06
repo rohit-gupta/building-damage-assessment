@@ -107,8 +107,6 @@ class DeepLabv3PlusHead(nn.Module):
         aspp_channels = 256
 
         feature_channels = low_channels_reduced + aspp_channels # Number of ASPP features
-
-        self.aspp_features = ASPP(high_channels, atrous_rates)
         self.low_features_reduce = nn.Sequential(nn.Conv2d(low_channels, low_channels_reduced, 1, padding=0, bias=False),
                                                  nn.BatchNorm2d(low_channels_reduced),
                                                  nn.ReLU(inplace=True))
@@ -126,17 +124,14 @@ class DeepLabv3PlusHead(nn.Module):
     def forward(self, features):
 
         low_features_size = features["low"].shape[-2:]
-        high_features_size = features["high"].shape[-2:]
-
+        # high_features_size = features["high"].shape[-2:]
         # print(low_features_size, high_features_size)
 
-        x = self.aspp_features(features["high"])
-        x = F.interpolate(x, size=low_features_size, mode='bilinear', align_corners=False)
         
+        x = F.interpolate(features["aspp"], size=low_features_size, mode='bilinear', align_corners=False)
         xl = self.low_features_reduce(features["low"])
 
         # print(x.shape, xl.shape)
-
         x = torch.cat((x, xl), 1)
 
         x = self.output_head(x)
@@ -161,6 +156,7 @@ class DeepLabv3PlusModel(nn.Module):
                                           replace_stride_with_dilation=replace_stride_with_dilation)
         return_layers = {'layer1': 'low', 'layer4': 'high'}
         self.backbone = IntermediateLayerGetter(backbone, return_layers=return_layers)
+        self.aspp_features = ASPP(high_channels, atrous_rates)
         self.classifier = DeepLabv3PlusHead(RESNET_LOW_FEATURE_SIZES[arch], 48, RESNET_HIGH_FEATURE_SIZES[arch], num_classes, atrous_rates)
     
     def forward(self, batch):
@@ -168,14 +164,42 @@ class DeepLabv3PlusModel(nn.Module):
         result = OrderedDict()
 
         input_size = batch.shape[-2:]
-        x = self.backbone(batch)
-        x = self.classifier(x)
+        features = self.backbone(batch)
+        features["aspp"] = self.aspp_features(features["high"])
+        x = self.classifier(features)
 
         x = F.interpolate(x, size=input_size, mode='bilinear', align_corners=False)
         
         result["out"] = x
+        result["features"] = features["aspp"]
 
         return result
+
+
+
+class ChangeDetectionHead(nn.Module):
+    """DeepLabv3+ Head"""
+    def __init__(self, change_channels, num_classes):
+        super(DeepLabv3PlusHead, self).__init__()
+
+        aspp_channels = 256
+
+        self.output_head = nn.Sequential(nn.Conv2d(aspp_channels, change_channels, 3, padding=1, bias=False),
+                                         nn.BatchNorm2d(change_channels),
+                                         nn.ReLU(inplace=True),
+                                         nn.Dropout(0.5),
+                                         nn.Conv2d(change_channels, change_channels, 3, padding=1, bias=False),
+                                         nn.BatchNorm2d(change_channels),
+                                         nn.ReLU(inplace=True),
+                                         nn.Dropout(0.1),
+                                         nn.Conv2d(change_channels, num_classes, 1))
+
+    def forward(self, pre_features, post_features):
+
+        features_diff = pre_features - post_features
+        x = self.output_head(x)
+
+        return x
 
 
 if __name__ == "__main__":
