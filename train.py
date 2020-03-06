@@ -69,7 +69,7 @@ if config["arch"]["META_ARCH"] == "DeepLabv3":
                                       num_classes=5,
                                       aux_loss=None)
 elif config["arch"]["META_ARCH"] == "DeepLabv3+":
-    semseg_model = DeepLabv3PlusModel(arch="resnet50", output_stride=16, pretrained_backbone=True, num_classes=5)
+    semseg_model = DeepLabv3PlusModel(arch="resnet50", output_stride=8, pretrained_backbone=True, num_classes=5)
 
 semseg_model = semseg_model.cuda()
 
