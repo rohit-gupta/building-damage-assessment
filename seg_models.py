@@ -101,7 +101,7 @@ def create_resnet_backbone(arch=None, block=None, layers=None,
 
 class DeepLabv3PlusHead(nn.Module):
     """DeepLabv3+ Head"""
-    def __init__(self, low_channels, low_channels_reduced, high_channels, num_classes, atrous_rates):
+    def __init__(self, low_channels, low_channels_reduced, num_classes):
         super(DeepLabv3PlusHead, self).__init__()
 
         aspp_channels = 256
@@ -156,8 +156,8 @@ class DeepLabv3PlusModel(nn.Module):
                                           replace_stride_with_dilation=replace_stride_with_dilation)
         return_layers = {'layer1': 'low', 'layer4': 'high'}
         self.backbone = IntermediateLayerGetter(backbone, return_layers=return_layers)
-        self.aspp_features = ASPP(high_channels, atrous_rates)
-        self.classifier = DeepLabv3PlusHead(RESNET_LOW_FEATURE_SIZES[arch], 48, RESNET_HIGH_FEATURE_SIZES[arch], num_classes, atrous_rates)
+        self.aspp_features = ASPP(RESNET_HIGH_FEATURE_SIZES[arch], atrous_rates)
+        self.classifier = DeepLabv3PlusHead(RESNET_LOW_FEATURE_SIZES[arch], 48, num_classes)
     
     def forward(self, batch):
 
@@ -178,7 +178,7 @@ class DeepLabv3PlusModel(nn.Module):
 
 
 class ChangeDetectionHead(nn.Module):
-    """DeepLabv3+ Head"""
+    """Change Detection Head"""
     def __init__(self, change_channels, num_classes):
         super(DeepLabv3PlusHead, self).__init__()
 
